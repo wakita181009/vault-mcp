@@ -11,6 +11,8 @@
 		"cf-typegen": "wrangler types",
 		"lint": "biome lint ./src",
 		"lint:fix": "biome lint --write ./src",
+		"test": "vitest run",
+		"test:watch": "vitest",
 		"typecheck": "tsc --noEmit",
 		"prepare": "husky || true"
 	},
@@ -26,6 +28,7 @@
 		"@biomejs/biome": "2.5.4",
 		"husky": "^9.1.7",
 		"typescript": "6.0.3",
+		"vitest": "^4.1.10",
 		"wrangler": "^4.112.0"
 	}
 }
