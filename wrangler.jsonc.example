@@ -45,7 +45,7 @@
   /**
    * Non-secret configuration. Override per environment as needed.
    * - VAULT_OWNER / VAULT_REPO / VAULT_BRANCH: the private repo the vault lives in.
-   * - ALLOWED_GITHUB_LOGINS: comma-separated GitHub logins allowed to use the MCP at all.
+   * - VAULT_ALLOWED_GITHUB_LOGINS: comma-separated GitHub logins allowed to use the MCP at all.
    * - VAULT_ALLOWED_PREFIXES: comma-separated path prefixes to expose (empty = whole repo).
    * - VAULT_DENIED_PREFIXES: comma-separated path prefixes to always hide.
    */
@@ -53,7 +53,7 @@
     "VAULT_OWNER": "your-github-login",
     "VAULT_REPO": "your-vault-repo",
     "VAULT_BRANCH": "main",
-    "ALLOWED_GITHUB_LOGINS": "your-github-login",
+    "VAULT_ALLOWED_GITHUB_LOGINS": "your-github-login",
     "VAULT_ALLOWED_PREFIXES": "",
     "VAULT_DENIED_PREFIXES": ".git/,.obsidian/,.claude/"
   },

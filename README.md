@@ -11,7 +11,7 @@ point the `vars` at your own private vault repo.
 ## What it does
 
 - **Auth:** GitHub OAuth via [`@cloudflare/workers-oauth-provider`](https://github.com/cloudflare/workers-oauth-provider).
-  Users sign in with GitHub; only logins in `ALLOWED_GITHUB_LOGINS` get any tools at all.
+  Users sign in with GitHub; only logins in `VAULT_ALLOWED_GITHUB_LOGINS` get any tools at all.
 - **Reads the vault** through the GitHub API using a **separate read-only fine-grained PAT**
   (`VAULT_GITHUB_TOKEN`), independent of the read/write PAT Obsidian Git uses to push.
 - **Transport:** Streamable HTTP at `/mcp`.
@@ -63,7 +63,7 @@ cp wrangler.jsonc.example wrangler.jsonc   # gitignored; holds your own values
 Then in `wrangler.jsonc`, set the `vars` to your own repo and account:
 
 - `VAULT_OWNER` / `VAULT_REPO` / `VAULT_BRANCH` — the GitHub repo holding the vault.
-- `ALLOWED_GITHUB_LOGINS` — comma-separated GitHub logins allowed to use the MCP (everyone else gets no tools).
+- `VAULT_ALLOWED_GITHUB_LOGINS` — comma-separated GitHub logins allowed to use the MCP (everyone else gets no tools).
 - `VAULT_ALLOWED_PREFIXES` / `VAULT_DENIED_PREFIXES` — see [Access scope](#access-scope) above.
 
 ### 2. Create the KV namespace (stores OAuth grants)

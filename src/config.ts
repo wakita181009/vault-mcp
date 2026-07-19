@@ -33,7 +33,7 @@ const envSchema = z.object({
 	VAULT_REPO: z.string().min(1),
 	VAULT_BRANCH: z.string().min(1).default("main"),
 	// List-shaped vars are allowed to be empty (empty = "no filter" / "nobody").
-	ALLOWED_GITHUB_LOGINS: z.string(),
+	VAULT_ALLOWED_GITHUB_LOGINS: z.string(),
 	VAULT_ALLOWED_PREFIXES: z.string(),
 	VAULT_DENIED_PREFIXES: z.string(),
 });

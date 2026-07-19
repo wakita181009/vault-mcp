@@ -9,7 +9,7 @@ are configured through `vars` in `wrangler.jsonc`.
 - **Read-only, always.** Never add a write or mutate tool. The server authenticates with a
   read-only PAT; a write tool would fail and defeats the entire purpose of the project.
 - **The login allowlist gates the whole toolset.** A GitHub login absent from
-  `ALLOWED_GITHUB_LOGINS` must get **zero** tools, not a reduced set — see `init` in `index.ts`.
+  `VAULT_ALLOWED_GITHUB_LOGINS` must get **zero** tools, not a reduced set — see `init` in `index.ts`.
 - **`VAULT_GITHUB_TOKEN` stays read-only and single-repo scoped.** Never widen it to write
   access or swap in a broader token; read access must never imply write access to the vault.
 - **Path safety.** `vault.ts` enforces `VAULT_ALLOWED_PREFIXES` / `VAULT_DENIED_PREFIXES` and
