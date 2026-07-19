@@ -55,7 +55,7 @@
     "VAULT_BRANCH": "main",
     "ALLOWED_GITHUB_LOGINS": "your-github-login",
     "VAULT_ALLOWED_PREFIXES": "",
-    "VAULT_DENIED_PREFIXES": ".git/,.obsidian/,.claude/,claude-projects/"
+    "VAULT_DENIED_PREFIXES": ".git/,.obsidian/,.claude/"
   },
   "observability": {
     "enabled": true

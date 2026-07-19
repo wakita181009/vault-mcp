@@ -1,13 +1,14 @@
 /**
  * Constructs an authorization URL for an upstream service.
  *
- * @param {Object} options
- * @param {string} options.upstream_url - The base URL of the upstream service.
- * @param {string} options.client_id - The client ID of the application.
- * @param {string} options.redirect_uri - The redirect URI of the application.
- * @param {string} [options.state] - The state parameter.
+ * @param options
+ * @param options.upstream_url - The base URL of the upstream service.
+ * @param options.client_id - The client ID of the application.
+ * @param options.scope - The OAuth scopes to request.
+ * @param options.redirect_uri - The redirect URI of the application.
+ * @param options.state - The state parameter.
  *
- * @returns {string} The authorization URL.
+ * @returns The authorization URL.
  */
 export function getUpstreamAuthorizeUrl({
 	upstream_url,
@@ -34,14 +35,14 @@ export function getUpstreamAuthorizeUrl({
 /**
  * Fetches an authorization token from an upstream service.
  *
- * @param {Object} options
- * @param {string} options.client_id - The client ID of the application.
- * @param {string} options.client_secret - The client secret of the application.
- * @param {string} options.code - The authorization code.
- * @param {string} options.redirect_uri - The redirect URI of the application.
- * @param {string} options.upstream_url - The token endpoint URL of the upstream service.
+ * @param options
+ * @param options.client_id - The client ID of the application.
+ * @param options.client_secret - The client secret of the application.
+ * @param options.code - The authorization code.
+ * @param options.redirect_uri - The redirect URI of the application.
+ * @param options.upstream_url - The token endpoint URL of the upstream service.
  *
- * @returns {Promise<[string, null] | [null, Response]>} A promise that resolves to an array containing the access token or an error response.
+ * @returns A promise that resolves to an array containing the access token or an error response.
  */
 export async function fetchUpstreamAuthToken({
 	client_id,
