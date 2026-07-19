@@ -27,11 +27,15 @@ const envSchema = z.object({
 	COOKIE_ENCRYPTION_KEY: z
 		.string()
 		.min(MIN_COOKIE_KEY_LENGTH, `too short — generate with \`openssl rand -hex 32\``),
-	VAULT_GITHUB_TOKEN: z.string().min(1),
+	// Fine-grained PATs start with `github_pat_`; reject a classic `ghp_` token or
+	// placeholder early rather than on the first GitHub API 401.
+	VAULT_GITHUB_TOKEN: z
+		.string()
+		.startsWith("github_pat_", "must be a fine-grained PAT (starts with `github_pat_`)"),
 	// Vars — `wrangler.jsonc` (may be overridden per environment).
 	VAULT_OWNER: z.string().min(1),
 	VAULT_REPO: z.string().min(1),
-	VAULT_BRANCH: z.string().min(1).default("main"),
+	VAULT_BRANCH: z.string().min(1),
 	// List-shaped vars are allowed to be empty (empty = "no filter" / "nobody").
 	VAULT_ALLOWED_GITHUB_LOGINS: z.string(),
 	VAULT_ALLOWED_PREFIXES: z.string(),
