@@ -1,15 +1,4 @@
-/**
- * Constructs an authorization URL for an upstream service.
- *
- * @param options
- * @param options.upstream_url - The base URL of the upstream service.
- * @param options.client_id - The client ID of the application.
- * @param options.scope - The OAuth scopes to request.
- * @param options.redirect_uri - The redirect URI of the application.
- * @param options.state - The state parameter.
- *
- * @returns The authorization URL.
- */
+/** Builds the upstream OAuth authorize URL with the standard query params. */
 export function getUpstreamAuthorizeUrl({
 	upstream_url,
 	client_id,
@@ -34,18 +23,7 @@ export function getUpstreamAuthorizeUrl({
 	return upstream.href;
 }
 
-/**
- * Fetches an authorization token from an upstream service.
- *
- * @param options
- * @param options.client_id - The client ID of the application.
- * @param options.client_secret - The client secret of the application.
- * @param options.code - The authorization code.
- * @param options.redirect_uri - The redirect URI of the application.
- * @param options.upstream_url - The token endpoint URL of the upstream service.
- *
- * @returns A promise that resolves to an array containing the access token or an error response.
- */
+/** Exchanges an authorization code for an access token. Returns `[token, null]` on success, `[null, errorResponse]` on failure. */
 export async function fetchUpstreamAuthToken({
 	client_id,
 	client_secret,

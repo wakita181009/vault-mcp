@@ -1,21 +1,8 @@
-// approval-dialog.ts
 // OAuth approval dialog rendering and the HTML-sanitization helpers it relies on.
 
 import type { ClientInfo } from "@cloudflare/workers-oauth-provider";
 
-/**
- * Sanitizes text content for safe display in HTML by escaping special characters.
- * Use this for client names, descriptions, and other text content.
- *
- * @param text - The unsafe text that might contain HTML special characters
- * @returns A safe string with HTML special characters escaped
- *
- * @example
- * ```typescript
- * const safeName = sanitizeText("<script>alert('xss')</script>");
- * // Returns: "&lt;script&gt;alert(&#039;xss&#039;)&lt;/script&gt;"
- * ```
- */
+/** Escapes HTML-significant characters for safe interpolation into markup. */
 export function sanitizeText(text: string): string {
 	return text
 		.replace(/&/g, "&amp;")
@@ -26,35 +13,9 @@ export function sanitizeText(text: string): string {
 }
 
 /**
- * Validates a URL for security.
- *
- * Implements RFC compliance:
- * - RFC 3986: Rejects control characters (not in allowed character set)
- * - RFC 3986: Validates URI structure using URL parser
- * - RFC 7591 §2: Client metadata URIs must point to valid web resources
- * - RFC 7591 §5: Protect users from malicious content (whitelist approach)
- *
- * Uses whitelist security: Only allows https: and http: schemes.
- * All other schemes (javascript:, data:, file:, etc.) are rejected.
- *
- * NOTE: This function only validates the URL structure and scheme. It does NOT
- * perform HTML escaping. If you need to use the URL in HTML context (href, src),
- * you must also call sanitizeText() on the result.
- *
- * @param url - The URL to validate
- * @returns The validated URL string, or empty string if validation fails
- *
- * @example
- * ```typescript
- * const validUrl = sanitizeUrl("https://example.com");
- * // Returns: "https://example.com"
- *
- * const blocked = sanitizeUrl("javascript:alert('xss')");
- * // Returns: "" (rejected - not in whitelist)
- *
- * // For use in HTML, also escape:
- * const htmlSafeUrl = sanitizeText(sanitizeUrl(userInput));
- * ```
+ * Validates a URL for safe use in HTML attributes. Rejects control characters
+ * and any scheme outside http/https (blocking javascript:, data:, file:, …).
+ * Returns "" on failure. Does NOT HTML-escape — wrap with sanitizeText() for use in markup.
  */
 export function sanitizeUrl(url: string): string {
 	const normalized = url.trim();
@@ -63,8 +24,7 @@ export function sanitizeUrl(url: string): string {
 		return "";
 	}
 
-	// RFC 3986: Control characters are not in the allowed character set
-	// Check C0 (0x00-0x1F) and C1 (0x7F-0x9F) control characters
+	// Reject C0 (0x00-0x1F) and C1 (0x7F-0x9F) control characters.
 	for (let i = 0; i < normalized.length; i++) {
 		const code = normalized.charCodeAt(i);
 		if ((code >= 0x00 && code <= 0x1f) || (code >= 0x7f && code <= 0x9f)) {
@@ -72,7 +32,6 @@ export function sanitizeUrl(url: string): string {
 		}
 	}
 
-	// RFC 3986: Validate URI structure (scheme and path required)
 	let parsedUrl: URL;
 	try {
 		parsedUrl = new URL(normalized);
@@ -80,61 +39,29 @@ export function sanitizeUrl(url: string): string {
 		return "";
 	}
 
-	// RFC 7591 §2: Client metadata URIs must point to valid web pages/resources
-	// RFC 7591 §5: Protect users from malicious content
-	// Whitelist only http/https schemes for web resources
 	const allowedSchemes = ["https", "http"];
-
 	const scheme = parsedUrl.protocol.slice(0, -1).toLowerCase();
 	if (!allowedSchemes.includes(scheme)) {
 		return "";
 	}
 
-	// Return validated URL without HTML escaping
-	// Caller should use sanitizeText() if HTML escaping is needed
 	return normalized;
 }
 
-/**
- * Configuration for the approval dialog
- */
 export interface ApprovalDialogOptions {
-	/**
-	 * Client information to display in the approval dialog
-	 */
 	client: ClientInfo | null;
-	/**
-	 * Server information to display in the approval dialog
-	 */
 	server: {
 		name: string;
 		logo?: string;
 		description?: string;
 	};
-	/**
-	 * Arbitrary state data to pass through the approval flow
-	 * Will be encoded in the form and returned when approval is complete
-	 */
+	/** Encoded into the form and returned verbatim when approval completes. */
 	state: Record<string, unknown>;
-	/**
-	 * CSRF token to include in the form
-	 */
 	csrfToken: string;
-	/**
-	 * Set-Cookie header for the CSRF token
-	 */
 	setCookie: string;
 }
 
-/**
- * Renders an approval dialog for OAuth authorization with CSRF protection
- * The dialog displays information about the client and server
- * and includes a form to submit approval with CSRF protection
- *
- * @param request - The HTTP request
- * @param options - Configuration for the approval dialog
- * @returns A Response containing the HTML approval dialog
- */
+/** Renders the OAuth authorization approval dialog, with a CSRF-protected approve form. */
 export function renderApprovalDialog(request: Request, options: ApprovalDialogOptions): Response {
 	const { client, server, state, csrfToken, setCookie } = options;
 

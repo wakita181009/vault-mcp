@@ -1,5 +1,5 @@
-// workers-oauth-utils.ts
-// OAuth utility functions with CSRF and state validation security fixes
+// OAuth helpers: CSRF protection, state creation/validation with session binding,
+// and the signed approved-clients cookie.
 
 import type { AuthRequest } from "@cloudflare/workers-oauth-provider";
 
@@ -7,17 +7,8 @@ const CSRF_TOKEN_COOKIE = "__Host-CSRF_TOKEN";
 const CONSENTED_STATE_COOKIE = "__Host-CONSENTED_STATE";
 const APPROVED_CLIENTS_COOKIE = "__Host-APPROVED_CLIENTS";
 
-/**
- * OAuth 2.1 compliant error class.
- * Represents errors that occur during OAuth operations with standardized error codes and descriptions.
- */
+/** OAuth 2.1 error carrying a standard error code and a JSON error response. */
 export class OAuthError extends Error {
-	/**
-	 * Creates a new OAuthError
-	 * @param code - The OAuth error code (e.g., "invalid_request", "invalid_grant")
-	 * @param description - Human-readable error description
-	 * @param statusCode - HTTP status code to return (defaults to 400)
-	 */
 	constructor(
 		public code: string,
 		public description: string,
@@ -27,10 +18,6 @@ export class OAuthError extends Error {
 		this.name = "OAuthError";
 	}
 
-	/**
-	 * Converts the error to a standardized OAuth error response
-	 * @returns HTTP Response with JSON error body
-	 */
 	toResponse(): Response {
 		return new Response(
 			JSON.stringify({
@@ -45,60 +32,26 @@ export class OAuthError extends Error {
 	}
 }
 
-/**
- * Result from createOAuthState containing the state token
- */
 export interface OAuthStateResult {
-	/**
-	 * The generated state token to be used in OAuth authorization requests
-	 */
 	stateToken: string;
 }
 
-/**
- * Result from validateOAuthState containing the original OAuth request info and cookie to clear
- */
 export interface ValidateStateResult {
-	/**
-	 * The original OAuth request information that was stored with the state token
-	 */
 	oauthReqInfo: AuthRequest;
-
-	/**
-	 * Set-Cookie header value to clear the state cookie
-	 */
+	/** Set-Cookie value that clears the session-binding cookie. */
 	clearCookie: string;
 }
 
-/**
- * Result from bindStateToSession containing the cookie to set
- */
 export interface BindStateResult {
-	/**
-	 * Set-Cookie header value to bind the state to the user's session
-	 */
 	setCookie: string;
 }
 
-/**
- * Result from generateCSRFProtection containing the CSRF token and cookie header
- */
 export interface CSRFProtectionResult {
-	/**
-	 * The generated CSRF token to be embedded in forms
-	 */
 	token: string;
-
-	/**
-	 * Set-Cookie header value to send to the client
-	 */
 	setCookie: string;
 }
 
-/**
- * Generates a new CSRF token and corresponding cookie for form protection
- * @returns Object containing the token and Set-Cookie header value
- */
+/** Generates a CSRF token and the matching short-lived cookie for the approval form. */
 export function generateCSRFProtection(): CSRFProtectionResult {
 	const token = crypto.randomUUID();
 	const setCookie = `${CSRF_TOKEN_COOKIE}=${token}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=600`;
@@ -106,13 +59,9 @@ export function generateCSRFProtection(): CSRFProtectionResult {
 }
 
 /**
- * Validates that the CSRF token from the form matches the token in the cookie.
- * The cookie is scoped to a single OAuth flow (SameSite=Lax, Max-Age=600) and the
- * downstream state is one-time-use in KV, so the token is not explicitly cleared here.
- *
- * @param formData - The parsed form data containing the CSRF token
- * @param request - The HTTP request containing cookies
- * @throws {OAuthError} If CSRF token is missing or mismatched
+ * Throws unless the form's CSRF token matches the cookie's. Not cleared here:
+ * the cookie is scoped to one OAuth flow (SameSite=Lax, Max-Age=600) and the
+ * downstream state is one-time-use in KV.
  */
 export function validateCSRFToken(formData: FormData, request: Request): void {
 	const tokenFromForm = formData.get("csrf_token");
@@ -130,13 +79,7 @@ export function validateCSRFToken(formData: FormData, request: Request): void {
 	}
 }
 
-/**
- * Creates and stores OAuth state information, returning a state token
- * @param oauthReqInfo - OAuth request information to store with the state
- * @param kv - Cloudflare KV namespace for storing OAuth state data
- * @param stateTTL - Time-to-live for OAuth state in seconds (defaults to 600)
- * @returns Object containing the state token (KV-only validation, no cookie needed)
- */
+/** Stores the OAuth request in KV (one-time use, TTL-bounded) under a fresh state token. */
 export async function createOAuthState(
 	oauthReqInfo: AuthRequest,
 	kv: KVNamespace,
@@ -144,7 +87,6 @@ export async function createOAuthState(
 ): Promise<OAuthStateResult> {
 	const stateToken = crypto.randomUUID();
 
-	// Store state in KV (secure, one-time use, with TTL)
 	await kv.put(`oauth:state:${stateToken}`, JSON.stringify(oauthReqInfo), {
 		expirationTtl: stateTTL,
 	});
@@ -153,22 +95,13 @@ export async function createOAuthState(
 }
 
 /**
- * Binds an OAuth state token to the user's browser session using a secure cookie.
- * This prevents CSRF attacks where an attacker's state token is used by a victim.
- *
- * SECURITY: This cookie proves that the browser completing the OAuth callback
- * is the same browser that consented to the authorization request.
- *
- * We hash the state token rather than storing it directly for defense-in-depth:
- * - Even if the state parameter leaks (URL logs, referrer headers), the cookie value cannot be derived
- * - The cookie serves as cryptographic proof of consent, not just a copy of the state
- * - Provides an additional layer of security beyond HttpOnly/Secure flags
- *
- * @param stateToken - The state token to bind to the session
- * @returns Object containing the Set-Cookie header to send to the client
+ * Binds the OAuth state to the browser via a cookie, proving the browser that
+ * completes the callback is the one that consented — this defeats CSRF where an
+ * attacker's state token is injected into a victim's flow. The cookie stores a
+ * hash, not the token itself, so a leaked state parameter (URL logs, referrer)
+ * cannot be used to forge the cookie.
  */
 export async function bindStateToSession(stateToken: string): Promise<BindStateResult> {
-	// Hash the state token to provide defense-in-depth
 	const hashHex = await sha256Hex(stateToken);
 	const setCookie = `${CONSENTED_STATE_COOKIE}=${hashHex}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=600`;
 
@@ -176,17 +109,9 @@ export async function bindStateToSession(stateToken: string): Promise<BindStateR
 }
 
 /**
- * Validates OAuth state from the request, ensuring:
- * 1. The state parameter exists in KV (proves it was created by our server)
- * 2. The state hash matches the session cookie (proves this browser consented to it)
- *
- * This prevents attacks where an attacker's valid state token is injected into
- * a victim's OAuth flow.
- *
- * @param request - The HTTP request containing state parameter and cookies
- * @param kv - Cloudflare KV namespace for storing OAuth state data
- * @returns Object containing the original OAuth request info and cookie to clear
- * @throws {OAuthError} If state is missing, mismatched, or expired
+ * Validates the callback's state against both KV (proves our server created it)
+ * and the session-binding cookie (proves this browser consented), then consumes
+ * both. Throws OAuthError if the state is missing, expired, or unmatched.
  */
 export async function validateOAuthState(
 	request: Request,
@@ -199,14 +124,11 @@ export async function validateOAuthState(
 		throw new OAuthError("invalid_request", "Missing state parameter", 400);
 	}
 
-	// Validate state exists in KV (secure, one-time use, with TTL)
 	const storedDataJson = await kv.get(`oauth:state:${stateFromQuery}`);
 	if (!storedDataJson) {
 		throw new OAuthError("invalid_request", "Invalid or expired state", 400);
 	}
 
-	// SECURITY FIX: Validate that this state token belongs to this browser session
-	// by checking that the state hash matches the session cookie
 	const consentedStateHash = getCookie(request, CONSENTED_STATE_COOKIE);
 	if (!consentedStateHash) {
 		throw new OAuthError(
@@ -216,7 +138,6 @@ export async function validateOAuthState(
 		);
 	}
 
-	// Hash the state from query and compare with cookie
 	const stateHash = await sha256Hex(stateFromQuery);
 	if (stateHash !== consentedStateHash) {
 		throw new OAuthError(
@@ -233,22 +154,14 @@ export async function validateOAuthState(
 		throw new OAuthError("server_error", "Invalid state data", 500);
 	}
 
-	// Delete state from KV (one-time use)
+	// State and its cookie are one-time use — consume both.
 	await kv.delete(`oauth:state:${stateFromQuery}`);
-
-	// Clear the session binding cookie (one-time use per OAuth flow)
 	const clearCookie = `${CONSENTED_STATE_COOKIE}=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0`;
 
 	return { oauthReqInfo, clearCookie };
 }
 
-/**
- * Checks if a client has been previously approved by the user
- * @param request - The HTTP request containing cookies
- * @param clientId - The OAuth client ID to check
- * @param cookieSecret - Secret key used for signing and verifying cookie data
- * @returns True if the client is in the user's approved clients list
- */
+/** Whether clientId is in the user's signed approved-clients cookie. */
 export async function isClientApproved(
 	request: Request,
 	clientId: string,
@@ -258,13 +171,7 @@ export async function isClientApproved(
 	return approvedClients?.includes(clientId) ?? false;
 }
 
-/**
- * Adds a client to the user's list of approved clients
- * @param request - The HTTP request containing existing cookies
- * @param clientId - The OAuth client ID to add
- * @param cookieSecret - Secret key used for signing and verifying cookie data
- * @returns Set-Cookie header value with the updated approved clients list
- */
+/** Adds clientId to the approved-clients list and returns the updated signed Set-Cookie. */
 export async function addApprovedClient(
 	request: Request,
 	clientId: string,

@@ -25,15 +25,13 @@ app.get("/authorize", async (c) => {
 		return c.text("Invalid request", 400);
 	}
 
-	// Check if client is already approved
+	// Already approved: skip the dialog, but still bind state to the session.
 	if (await isClientApproved(c.req.raw, clientId, env.COOKIE_ENCRYPTION_KEY)) {
-		// Skip approval dialog but still create secure state and bind to session
 		const { stateToken } = await createOAuthState(oauthReqInfo, c.env.OAUTH_KV);
 		const { setCookie: sessionBindingCookie } = await bindStateToSession(stateToken);
 		return redirectToGithub(c.req.raw, stateToken, { "Set-Cookie": sessionBindingCookie });
 	}
 
-	// Generate CSRF protection for the approval form
 	const { token: csrfToken, setCookie } = generateCSRFProtection();
 
 	return renderApprovalDialog(c.req.raw, {
@@ -52,13 +50,9 @@ app.get("/authorize", async (c) => {
 
 app.post("/authorize", async (c) => {
 	try {
-		// Read form data once
 		const formData = await c.req.raw.formData();
-
-		// Validate CSRF token
 		validateCSRFToken(formData, c.req.raw);
 
-		// Extract state from form data
 		const encodedState = formData.get("state");
 		if (!encodedState || typeof encodedState !== "string") {
 			return c.text("Missing state in form data", 400);
@@ -75,18 +69,15 @@ app.post("/authorize", async (c) => {
 			return c.text("Invalid request", 400);
 		}
 
-		// Add client to approved list
 		const approvedClientCookie = await addApprovedClient(
 			c.req.raw,
 			state.oauthReqInfo.clientId,
 			c.env.COOKIE_ENCRYPTION_KEY,
 		);
 
-		// Create OAuth state and bind it to this user's session
 		const { stateToken } = await createOAuthState(state.oauthReqInfo, c.env.OAUTH_KV);
 		const { setCookie: sessionBindingCookie } = await bindStateToSession(stateToken);
 
-		// Set both cookies: approved client list + session binding
 		const headers = new Headers();
 		headers.append("Set-Cookie", approvedClientCookie);
 		headers.append("Set-Cookie", sessionBindingCookie);
@@ -97,7 +88,6 @@ app.post("/authorize", async (c) => {
 		if (error instanceof OAuthError) {
 			return error.toResponse();
 		}
-		// Unexpected non-OAuth error
 		const message = error instanceof Error ? error.message : String(error);
 		return c.text(`Internal server error: ${message}`, 500);
 	}
@@ -124,24 +114,11 @@ async function redirectToGithub(
 }
 
 /**
- * OAuth Callback Endpoint
- *
- * This route handles the callback from GitHub after user authentication.
- * It exchanges the temporary code for an access token, then stores some
- * user metadata & the auth token as part of the 'props' on the token passed
- * down to the client. It ends by redirecting the client back to _its_ callback URL
- *
- * SECURITY: This endpoint validates that the state parameter from GitHub
- * matches both:
- * 1. A valid state token in KV (proves it was created by our server)
- * 2. The __Host-CONSENTED_STATE cookie (proves THIS browser consented to it)
- *
- * This prevents CSRF attacks where an attacker's state token is injected
- * into a victim's OAuth flow.
+ * GitHub OAuth callback: exchanges the code for an access token, stores user
+ * metadata + token on the client's `props`, and redirects to the client's own
+ * callback. validateOAuthState guards against CSRF (see workers-oauth-utils).
  */
 app.get("/callback", async (c) => {
-	// Validate OAuth state with session binding
-	// This checks both KV storage AND the session cookie
 	let oauthReqInfo: AuthRequest;
 	let clearSessionCookie: string;
 
@@ -153,7 +130,6 @@ app.get("/callback", async (c) => {
 		if (error instanceof OAuthError) {
 			return error.toResponse();
 		}
-		// Unexpected non-OAuth error
 		return c.text("Internal server error", 500);
 	}
 
@@ -168,7 +144,6 @@ app.get("/callback", async (c) => {
 		return c.text("Missing authorization code", 400);
 	}
 
-	// Exchange the code for an access token
 	const [accessToken, errResponse] = await fetchUpstreamAuthToken({
 		client_id: c.env.GITHUB_CLIENT_ID,
 		client_secret: c.env.GITHUB_CLIENT_SECRET,
@@ -178,16 +153,14 @@ app.get("/callback", async (c) => {
 	});
 	if (errResponse) return errResponse;
 
-	// Fetch the user info from GitHub
 	const user = await new Octokit({ auth: accessToken }).rest.users.getAuthenticated();
 	const { login, name, email } = user.data;
 
-	// Return back to the MCP client a new token
 	const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
 		metadata: {
 			label: name,
 		},
-		// This will be available on this.props inside MyMCP
+		// Surfaced as `this.props` on VaultMCP.
 		props: {
 			accessToken,
 			email,
@@ -199,7 +172,6 @@ app.get("/callback", async (c) => {
 		userId: login,
 	});
 
-	// Clear the session binding cookie (one-time use) by creating response with headers
 	const headers = new Headers({ Location: redirectTo });
 	if (clearSessionCookie) {
 		headers.set("Set-Cookie", clearSessionCookie);
