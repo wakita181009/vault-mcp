@@ -1,6 +1,6 @@
 {
 	"name": "vault-mcp",
-	"version": "0.1.0",
+	"version": "0.0.1",
 	"private": true,
 	"description": "Authenticated remote MCP server on Cloudflare Workers that exposes the wakita181009/vault Obsidian vault (read-only) to claude.ai and Claude Code.",
 	"scripts": {
