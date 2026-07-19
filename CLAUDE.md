@@ -1,29 +1,27 @@
 # vault-mcp
 
-Authenticated remote MCP (Cloudflare Workers) exposing the private `wakita181009/vault`
-Obsidian vault **read-only** to claude.ai and Claude Code. Implements Layer 2 of the vault's
-`claude-environment/` design notes.
+Authenticated remote MCP server (Cloudflare Workers) that exposes a private, GitHub-hosted
+Obsidian vault **read-only** to claude.ai and Claude Code. The target repo and access policy
+are configured through `vars` in `wrangler.jsonc`.
 
-## Architecture
+## Invariants — keep these intact when changing code
 
-- `@cloudflare/workers-oauth-provider` provides OAuth; GitHub is the login provider (`github-handler.ts`).
-- `ALLOWED_GITHUB_LOGINS` (var) gates access — non-allowed logins get **zero** tools.
-- The vault is read via the GitHub API using `VAULT_GITHUB_TOKEN` (a read-only fine-grained PAT),
-  **separate** from the Obsidian Git read/write PAT.
-- Transport: Streamable HTTP at `/mcp`. Durable Object class `VaultMCP`.
+- **Read-only, always.** Never add a write or mutate tool. The server authenticates with a
+  read-only PAT; a write tool would fail and defeats the entire purpose of the project.
+- **The login allowlist gates the whole toolset.** A GitHub login absent from
+  `ALLOWED_GITHUB_LOGINS` must get **zero** tools, not a reduced set — see `init` in `index.ts`.
+- **`VAULT_GITHUB_TOKEN` stays read-only and single-repo scoped.** Never widen it to write
+  access or swap in a broader token; read access must never imply write access to the vault.
+- **Path safety.** `vault.ts` enforces `VAULT_ALLOWED_PREFIXES` / `VAULT_DENIED_PREFIXES` and
+  rejects `..` traversal and absolute paths in `read_note`. Preserve this when touching read logic.
 
 ## Conventions
 
-- Code/comments/docs: English. Comments explain **why**, not what.
-- Immutability; small focused modules. All vault access is **read-only** — never add write tools
-  (would defeat the point of a read-only PAT).
-- Secrets live in `.dev.vars` (local) / `wrangler secret put` (prod); their types are in `src/env.d.ts`.
-- After editing `wrangler.jsonc`, run `npm run cf-typegen`. Verify with `npm run type-check`
-  and `npx wrangler deploy --dry-run`.
+- Code, comments, and docs in English. Comments explain **why**, not what.
+- Immutability; small, focused modules.
+- Secrets: `.dev.vars` locally, `wrangler secret put` in production. Their types live in
+  `src/env.d.ts` (they are not emitted by `wrangler types`).
+- After editing `wrangler.jsonc`, run `pnpm cf-typegen`, then verify with `pnpm typecheck`
+  and `pnpm exec wrangler deploy --dry-run`.
 
-## Path safety
-
-`vault.ts` enforces `VAULT_ALLOWED_PREFIXES` / `VAULT_DENIED_PREFIXES` and rejects `..` traversal
-and absolute paths in `read_note`. Keep that policy intact when changing read logic.
-
-See `README.md` for the full setup/deploy runbook.
+See `README.md` for the full setup and deploy runbook.

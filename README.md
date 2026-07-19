@@ -1,11 +1,12 @@
 # vault-mcp
 
-Authenticated **remote MCP server** on Cloudflare Workers that exposes the private
-[`wakita181009/vault`](https://github.com/wakita181009/vault) Obsidian vault **read-only**
-to both **claude.ai** (Web / Desktop / iPhone) and **Claude Code**.
+Authenticated **remote MCP server** on Cloudflare Workers that exposes a private, GitHub-hosted
+Obsidian vault **read-only** to both **claude.ai** (Web / Desktop / iPhone) and **Claude Code** —
+one free deployment serving every Claude surface.
 
-It is the implementation of Layer 2 in the vault's `claude-environment/` design notes
-(`04-recommended-architecture`, `06-how-to-mcp-ify-vault`, `09-current-status-and-next-mcp`).
+It reads the vault through the GitHub API, so the source repo can stay private and there is no
+always-on machine to maintain. Copy `wrangler.jsonc.example` to `wrangler.jsonc` (gitignored) and
+point the `vars` at your own private vault repo.
 
 ## What it does
 
@@ -28,10 +29,11 @@ It is the implementation of Layer 2 in the vault's `claude-environment/` design 
 | Purpose | Token | Scope |
 | --- | --- | --- |
 | **Who may log in** | GitHub **OAuth App** (`GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`) | `read:user` only |
-| **What the server reads** | read-only **fine-grained PAT** (`VAULT_GITHUB_TOKEN`) | Contents: Read, limited to `wakita181009/vault` |
+| **What the server reads** | read-only **fine-grained PAT** (`VAULT_GITHUB_TOKEN`) | Contents: Read, limited to your vault repo |
 
 Keeping them separate means logging in never grants repo write, and the read token is
-scoped to exactly one repo. **Never reuse the Obsidian Git read/write PAT here.**
+scoped to exactly one repo. **Never reuse a read/write PAT here** (e.g. the one Obsidian Git
+uses to push) — this server only ever needs read access.
 
 ## Access scope
 
@@ -40,36 +42,48 @@ Path visibility is controlled by two `vars` in `wrangler.jsonc`:
 - `VAULT_ALLOWED_PREFIXES` — if non-empty, only paths under these prefixes are exposed (empty = whole repo).
 - `VAULT_DENIED_PREFIXES` — always hidden (default: `.git/,.obsidian/,.claude/,claude-projects/`).
 
-`read_note` also rejects absolute paths and `..` traversal. To also hide the design notes,
-add `claude-environment/` to `VAULT_DENIED_PREFIXES`.
+`read_note` also rejects absolute paths and `..` traversal. To hide additional folders,
+add their prefixes to `VAULT_DENIED_PREFIXES`.
 
 ## Setup
 
 ### 0. Prereqs
 
 ```bash
-npm install
-npx wrangler login          # Cloudflare auth
+pnpm install
+pnpm exec wrangler login    # Cloudflare auth
 ```
 
-### 1. Create the KV namespace (stores OAuth grants)
+### 1. Point it at your vault
 
 ```bash
-npx wrangler kv namespace create OAUTH_KV
+cp wrangler.jsonc.example wrangler.jsonc   # gitignored; holds your own values
+```
+
+Then in `wrangler.jsonc`, set the `vars` to your own repo and account:
+
+- `VAULT_OWNER` / `VAULT_REPO` / `VAULT_BRANCH` — the GitHub repo holding the vault.
+- `ALLOWED_GITHUB_LOGINS` — comma-separated GitHub logins allowed to use the MCP (everyone else gets no tools).
+- `VAULT_ALLOWED_PREFIXES` / `VAULT_DENIED_PREFIXES` — see [Access scope](#access-scope) above.
+
+### 2. Create the KV namespace (stores OAuth grants)
+
+```bash
+pnpm exec wrangler kv namespace create OAUTH_KV
 ```
 
 Put the returned `id` into `wrangler.jsonc` under `kv_namespaces[0].id`.
 
-### 2. Create the read-only PAT for reading the vault
+### 3. Create the read-only PAT for reading the vault
 
 GitHub → Settings → Developer settings → **Fine-grained tokens** → Generate:
 
-- Resource owner: `wakita181009`, Repository access: **Only** `wakita181009/vault`
+- Resource owner: your account, Repository access: **Only** your vault repo
 - Permissions: **Contents → Read-only**
 
 Save the token for `VAULT_GITHUB_TOKEN` below.
 
-### 3. Create the GitHub OAuth App (login)
+### 4. Create the GitHub OAuth App (login)
 
 You need **two** apps (or reuse one with a second callback): local + production.
 
@@ -80,34 +94,34 @@ GitHub → Settings → Developer settings → **OAuth Apps** → New:
 
 Note each app's Client ID and generate a Client Secret.
 
-### 4a. Run locally
+### 5a. Run locally
 
 ```bash
 cp .dev.vars.example .dev.vars    # fill in with the LOCAL OAuth app + PAT
 openssl rand -hex 32              # value for COOKIE_ENCRYPTION_KEY
-npm run dev                       # http://localhost:8788/mcp
+pnpm dev                          # http://localhost:8788/mcp
 ```
 
 Test with the MCP inspector:
 
 ```bash
-npx @modelcontextprotocol/inspector@latest
+pnpm dlx @modelcontextprotocol/inspector@latest
 # connect to http://localhost:8788/mcp, complete the GitHub login
 ```
 
-### 4b. Deploy to production
+### 5b. Deploy to production
 
 ```bash
-npx wrangler secret put GITHUB_CLIENT_ID       # PROD OAuth app
-npx wrangler secret put GITHUB_CLIENT_SECRET
-npx wrangler secret put COOKIE_ENCRYPTION_KEY  # openssl rand -hex 32
-npx wrangler secret put VAULT_GITHUB_TOKEN     # read-only fine-grained PAT
-npm run deploy
+pnpm exec wrangler secret put GITHUB_CLIENT_ID       # PROD OAuth app
+pnpm exec wrangler secret put GITHUB_CLIENT_SECRET
+pnpm exec wrangler secret put COOKIE_ENCRYPTION_KEY  # openssl rand -hex 32
+pnpm exec wrangler secret put VAULT_GITHUB_TOKEN     # read-only fine-grained PAT
+pnpm run deploy
 ```
 
 Endpoint: `https://vault-mcp.<subdomain>.workers.dev/mcp`
 
-### 5. Connect the clients
+### 6. Connect the clients
 
 - **claude.ai (Web):** Settings → Connectors → add custom connector with the `/mcp` URL.
   Registration is Web-only; it then syncs to Desktop and the iPhone app.
@@ -117,13 +131,14 @@ Endpoint: `https://vault-mcp.<subdomain>.workers.dev/mcp`
 ## Development
 
 ```bash
-npm run type-check   # tsc --noEmit
-npm run cf-typegen   # regenerate worker-configuration.d.ts after editing wrangler.jsonc
-npm run dev          # local Worker at :8788
+pnpm typecheck     # tsc --noEmit
+pnpm lint          # biome lint ./src
+pnpm cf-typegen    # regenerate worker-configuration.d.ts after editing wrangler.jsonc
+pnpm dev           # local Worker at :8788
 ```
 
 Secrets are typed in `src/env.d.ts` (they are not part of the `wrangler types` output).
-After changing `wrangler.jsonc` bindings/vars, rerun `npm run cf-typegen`.
+After changing `wrangler.jsonc` bindings/vars, rerun `pnpm cf-typegen`.
 
 ## Layout
 

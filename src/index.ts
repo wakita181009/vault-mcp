@@ -12,8 +12,8 @@ const MAX_SEARCH_LIMIT = 30;
 
 export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 	server = new McpServer({
-		name: "wakita181009/vault MCP",
-		version: "0.1.0",
+		name: "Vault MCP",
+		version: "0.0.1",
 	});
 
 	async init() {

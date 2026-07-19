@@ -1,4 +1,9 @@
 /**
+ * Sample Worker config. Copy to `wrangler.jsonc` and fill in your own values:
+ *
+ *   cp wrangler.jsonc.example wrangler.jsonc
+ *
+ * `wrangler.jsonc` is gitignored so your real owner/repo/allowlist never land in git.
  * For more details on how to configure Wrangler, refer to:
  * https://developers.cloudflare.com/workers/wrangler/configuration/
  */
@@ -10,10 +15,10 @@
   "compatibility_flags": ["nodejs_compat"],
   /**
    * Secrets are NOT stored here. Set them with `wrangler secret put`:
-   *   npx wrangler secret put GITHUB_CLIENT_ID      # OAuth app (who may log in)
-   *   npx wrangler secret put GITHUB_CLIENT_SECRET  # OAuth app
-   *   npx wrangler secret put COOKIE_ENCRYPTION_KEY # `openssl rand -hex 32`
-   *   npx wrangler secret put VAULT_GITHUB_TOKEN    # read-only fine-grained PAT for reading the vault
+   *   pnpm exec wrangler secret put GITHUB_CLIENT_ID      # OAuth app (who may log in)
+   *   pnpm exec wrangler secret put GITHUB_CLIENT_SECRET  # OAuth app
+   *   pnpm exec wrangler secret put COOKIE_ENCRYPTION_KEY # `openssl rand -hex 32`
+   *   pnpm exec wrangler secret put VAULT_GITHUB_TOKEN    # read-only fine-grained PAT for reading the vault
    *
    * For local dev, put the same keys in `.dev.vars` (see .dev.vars.example).
    */
@@ -39,15 +44,16 @@
   ],
   /**
    * Non-secret configuration. Override per environment as needed.
+   * - VAULT_OWNER / VAULT_REPO / VAULT_BRANCH: the private repo the vault lives in.
    * - ALLOWED_GITHUB_LOGINS: comma-separated GitHub logins allowed to use the MCP at all.
    * - VAULT_ALLOWED_PREFIXES: comma-separated path prefixes to expose (empty = whole repo).
    * - VAULT_DENIED_PREFIXES: comma-separated path prefixes to always hide.
    */
   "vars": {
-    "VAULT_OWNER": "wakita181009",
-    "VAULT_REPO": "vault",
+    "VAULT_OWNER": "your-github-login",
+    "VAULT_REPO": "your-vault-repo",
     "VAULT_BRANCH": "main",
-    "ALLOWED_GITHUB_LOGINS": "wakita181009",
+    "ALLOWED_GITHUB_LOGINS": "your-github-login",
     "VAULT_ALLOWED_PREFIXES": "",
     "VAULT_DENIED_PREFIXES": ".git/,.obsidian/,.claude/,claude-projects/"
   },

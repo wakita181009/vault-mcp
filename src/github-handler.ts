@@ -40,9 +40,9 @@ app.get("/authorize", async (c) => {
 		csrfToken,
 		server: {
 			description:
-				"Read-only remote MCP for the wakita181009/vault Obsidian vault. Sign in with GitHub to connect.",
+				"Read-only remote MCP for a private GitHub-hosted Obsidian vault. Sign in with GitHub to connect.",
 			logo: "https://avatars.githubusercontent.com/u/314135?s=200&v=4",
-			name: "wakita181009/vault MCP",
+			name: "Vault MCP",
 		},
 		setCookie,
 		state: { oauthReqInfo },

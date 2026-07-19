@@ -9,6 +9,6 @@ GITHUB_CLIENT_SECRET=<your github oauth app client secret>
 COOKIE_ENCRYPTION_KEY=<32-byte hex string>
 
 # Read-only fine-grained PAT used by the server to READ the vault repo.
-# Scope: Contents = Read-only, limited to wakita181009/vault only.
+# Scope: Contents = Read-only, limited to your vault repo only.
 # MUST be different from any read/write PAT used by Obsidian Git.
 VAULT_GITHUB_TOKEN=<github_pat_...>
