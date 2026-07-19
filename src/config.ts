@@ -23,7 +23,7 @@ const MIN_COOKIE_KEY_LENGTH = 32;
 // Generic tooling/dotfile dirs that should never be exposed as notes. Committed
 // here rather than in `wrangler.jsonc` vars so the default is visible and
 // code-reviewed; override per deploy with a `VAULT_DENIED_PREFIXES` secret.
-const DEFAULT_DENIED_PREFIXES = ".git/,.obsidian/,.claude/,claude-projects/";
+const DEFAULT_DENIED_PREFIXES = ".git/,.obsidian/,.claude/";
 
 const envSchema = z.object({
 	// Secrets — `wrangler secret put` (prod) / `.dev.vars` (local).

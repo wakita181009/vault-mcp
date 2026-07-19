@@ -41,7 +41,7 @@ Path visibility is controlled by two settings that default in `src/config.ts`; o
 either per deploy with a secret of the same name (`wrangler secret put`):
 
 - `VAULT_ALLOWED_PREFIXES` — if non-empty, only paths under these prefixes are exposed (default: empty = whole repo).
-- `VAULT_DENIED_PREFIXES` — always hidden (default: `.git/,.obsidian/,.claude/,claude-projects/`).
+- `VAULT_DENIED_PREFIXES` — always hidden (default: `.git/,.obsidian/,.claude/`).
 
 `read_note` also rejects absolute paths and `..` traversal. To hide additional folders,
 override `VAULT_DENIED_PREFIXES` with your extra prefixes.

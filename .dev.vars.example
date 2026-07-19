@@ -22,7 +22,7 @@ VAULT_ALLOWED_GITHUB_LOGINS=<comma-separated github logins allowed to use the MC
 # Optional overrides — omit to use the defaults baked into src/config.ts:
 #   VAULT_BRANCH             -> "main"
 #   VAULT_ALLOWED_PREFIXES   -> "" (whole repo)
-#   VAULT_DENIED_PREFIXES    -> ".git/,.obsidian/,.claude/,claude-projects/"
+#   VAULT_DENIED_PREFIXES    -> ".git/,.obsidian/,.claude/"
 # VAULT_BRANCH=main
 # VAULT_ALLOWED_PREFIXES=
-# VAULT_DENIED_PREFIXES=.git/,.obsidian/,.claude/,claude-projects/
+# VAULT_DENIED_PREFIXES=.git/,.obsidian/,.claude/

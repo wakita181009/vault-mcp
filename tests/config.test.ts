@@ -22,7 +22,7 @@ describe("parseEnv", () => {
 		const config = parse();
 		expect(config.VAULT_BRANCH).toBe("main");
 		expect(config.VAULT_ALLOWED_PREFIXES).toBe("");
-		expect(config.VAULT_DENIED_PREFIXES).toBe(".git/,.obsidian/,.claude/,claude-projects/");
+		expect(config.VAULT_DENIED_PREFIXES).toBe(".git/,.obsidian/,.claude/");
 	});
 
 	it("passes explicit optional overrides through unchanged", () => {
