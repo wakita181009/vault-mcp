@@ -2,7 +2,8 @@
 
 Authenticated remote MCP server (Cloudflare Workers) that exposes a private, GitHub-hosted
 Obsidian vault **read-only** to claude.ai and Claude Code. The target repo and access policy
-are configured through `vars` in `wrangler.jsonc`.
+are configured through secrets; path-scope overrides default in `src/config.ts`, so
+`wrangler.jsonc` ships generic (no `vars`).
 
 ## Invariants — keep these intact when changing code
 
@@ -12,8 +13,10 @@ are configured through `vars` in `wrangler.jsonc`.
   `VAULT_ALLOWED_GITHUB_LOGINS` must get **zero** tools, not a reduced set — see `init` in `index.ts`.
 - **`VAULT_GITHUB_TOKEN` stays read-only and single-repo scoped.** Never widen it to write
   access or swap in a broader token; read access must never imply write access to the vault.
-- **Path safety.** `vault.ts` enforces `VAULT_ALLOWED_PREFIXES` / `VAULT_DENIED_PREFIXES` and
-  rejects `..` traversal and absolute paths in `read_note`. Preserve this when touching read logic.
+- **Path safety.** `vault.ts` enforces `VAULT_ALLOWED_PREFIXES` / `VAULT_DENIED_PREFIXES`
+  (defaults in `src/config.ts`; `DEFAULT_DENIED_PREFIXES` must keep hiding `.git/`, `.obsidian/`,
+  and agent dirs) and rejects `..` traversal and absolute paths in `read_note`. Preserve this
+  when touching read logic.
 
 ## Conventions
 

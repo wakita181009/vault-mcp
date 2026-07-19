@@ -171,8 +171,6 @@ dist
 .dev.vars
 .wrangler/
 
-# Local deploy config with your own owner/repo/allowlist. Copy from
-# wrangler.jsonc.example. worker-configuration.d.ts is generated from it
-# (npm run cf-typegen) and would otherwise embed your values as literal types.
-wrangler.jsonc
+# Generated from wrangler.jsonc + .dev.vars via `pnpm cf-typegen`; embeds local
+# secret values as literal types, so it must never be committed.
 worker-configuration.d.ts

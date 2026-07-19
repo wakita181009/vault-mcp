@@ -1,0 +1,59 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "vault-mcp",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-03-10",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	/**
+   * Secrets are NOT stored here. Set them with `wrangler secret put`:
+   *   pnpm exec wrangler secret put GITHUB_CLIENT_ID      # OAuth app (who may log in)
+   *   pnpm exec wrangler secret put GITHUB_CLIENT_SECRET  # OAuth app
+   *   pnpm exec wrangler secret put COOKIE_ENCRYPTION_KEY # `openssl rand -hex 32`
+   *   pnpm exec wrangler secret put VAULT_GITHUB_TOKEN    # read-only fine-grained PAT for reading the vault
+   *   pnpm exec wrangler secret put VAULT_OWNER           # GitHub owner of the vault repo
+   *   pnpm exec wrangler secret put VAULT_REPO            # vault repo name
+   *   pnpm exec wrangler secret put VAULT_ALLOWED_GITHUB_LOGINS # comma-separated allowed logins
+   *
+   * For local dev, put the same keys in `.dev.vars` (see .dev.vars.example).
+   */
+	"migrations": [
+		{
+			"new_sqlite_classes": [
+				"VaultMCP"
+			],
+			"tag": "v1"
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"class_name": "VaultMCP",
+				"name": "MCP_OBJECT"
+			}
+		]
+	},
+	"kv_namespaces": [
+		{
+			"binding": "OAUTH_KV",
+			"id": "a99f30aebb1649bfb41bc1df3d2ddb68",
+			"remote": true
+		}
+	],
+	/**
+   * No `vars` here. Optional overrides (VAULT_BRANCH, VAULT_ALLOWED_PREFIXES,
+   * VAULT_DENIED_PREFIXES) default in code (see src/config.ts) so this file stays
+   * generic; set any of them as a secret above to override per deploy.
+   */
+	"observability": {
+		"enabled": true
+	},
+	"dev": {
+		"port": 8788
+	}
+}

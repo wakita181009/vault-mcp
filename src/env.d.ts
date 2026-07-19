@@ -13,6 +13,14 @@ interface VaultSecrets {
 	COOKIE_ENCRYPTION_KEY: string;
 	/** Read-only fine-grained PAT the server uses to read the vault repo. */
 	VAULT_GITHUB_TOKEN: string;
+	/**
+	 * Vault target and access allowlist. Secrets, not `wrangler.jsonc` vars:
+	 * this is a public template, so committing them would leak the private
+	 * vault's identity and who may access it.
+	 */
+	VAULT_OWNER: string;
+	VAULT_REPO: string;
+	VAULT_ALLOWED_GITHUB_LOGINS: string;
 }
 
 interface Env extends VaultSecrets {}

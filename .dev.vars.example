@@ -12,3 +12,17 @@ COOKIE_ENCRYPTION_KEY=<32-byte hex string>
 # Scope: Contents = Read-only, limited to your vault repo only.
 # MUST be different from any read/write PAT used by Obsidian Git.
 VAULT_GITHUB_TOKEN=<github_pat_...>
+
+# Vault target + access allowlist. Secrets (not wrangler.jsonc vars) because this
+# is a public template — committing them would leak the private vault and its allowlist.
+VAULT_OWNER=<github owner/org of the vault repo>
+VAULT_REPO=<vault repo name>
+VAULT_ALLOWED_GITHUB_LOGINS=<comma-separated github logins allowed to use the MCP>
+
+# Optional overrides — omit to use the defaults baked into src/config.ts:
+#   VAULT_BRANCH             -> "main"
+#   VAULT_ALLOWED_PREFIXES   -> "" (whole repo)
+#   VAULT_DENIED_PREFIXES    -> ".git/,.obsidian/,.claude/,claude-projects/"
+# VAULT_BRANCH=main
+# VAULT_ALLOWED_PREFIXES=
+# VAULT_DENIED_PREFIXES=.git/,.obsidian/,.claude/,claude-projects/

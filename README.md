@@ -5,8 +5,8 @@ Obsidian vault **read-only** to both **claude.ai** (Web / Desktop / iPhone) and 
 one free deployment serving every Claude surface.
 
 It reads the vault through the GitHub API, so the source repo can stay private and there is no
-always-on machine to maintain. Copy `wrangler.jsonc.example` to `wrangler.jsonc` (gitignored) and
-point the `vars` at your own private vault repo.
+always-on machine to maintain. Deploy your own instance with C3 (one command) or clone it manually
+— both are covered below. Your vault target is set via secrets, so the committed config ships generic.
 
 ## What it does
 
@@ -37,13 +37,28 @@ uses to push) — this server only ever needs read access.
 
 ## Access scope
 
-Path visibility is controlled by two `vars` in `wrangler.jsonc`:
+Path visibility is controlled by two settings that default in `src/config.ts`; override
+either per deploy with a secret of the same name (`wrangler secret put`):
 
-- `VAULT_ALLOWED_PREFIXES` — if non-empty, only paths under these prefixes are exposed (empty = whole repo).
+- `VAULT_ALLOWED_PREFIXES` — if non-empty, only paths under these prefixes are exposed (default: empty = whole repo).
 - `VAULT_DENIED_PREFIXES` — always hidden (default: `.git/,.obsidian/,.claude/,claude-projects/`).
 
 `read_note` also rejects absolute paths and `..` traversal. To hide additional folders,
-add their prefixes to `VAULT_DENIED_PREFIXES`.
+override `VAULT_DENIED_PREFIXES` with your extra prefixes.
+
+## Quick start (C3)
+
+Scaffold your own copy with Cloudflare's [C3](https://developers.cloudflare.com/pages/get-started/c3/):
+
+```bash
+npm create cloudflare@latest vault-mcp -- --template wakita181009/vault-mcp
+cd vault-mcp
+```
+
+That clones the project and installs dependencies — but not the one-time setup:
+you still create the KV namespace, GitHub OAuth app, and read-only PAT, and set
+the secrets. Continue with [Setup](#setup) from **step 2** (step 1 is done for
+you). Cloning the repo directly works too; then start from step 0.
 
 ## Setup
 
@@ -56,14 +71,14 @@ pnpm exec wrangler login    # Cloudflare auth
 
 ### 1. Point it at your vault
 
-```bash
-cp wrangler.jsonc.example wrangler.jsonc   # gitignored; holds your own values
-```
+Your vault target (`VAULT_OWNER` / `VAULT_REPO`) and login allowlist
+(`VAULT_ALLOWED_GITHUB_LOGINS`) are **secrets**, set in step 5 — you don't edit
+`wrangler.jsonc` to point it at your repo. The committed `wrangler.jsonc` ships
+generic; its only per-deploy value is the KV namespace id (step 2). Everything
+else defaults in `src/config.ts` and is optional — override any of these per deploy
+with `wrangler secret put <NAME>`:
 
-Then in `wrangler.jsonc`, set the `vars` to your own repo and account:
-
-- `VAULT_OWNER` / `VAULT_REPO` / `VAULT_BRANCH` — the GitHub repo holding the vault.
-- `VAULT_ALLOWED_GITHUB_LOGINS` — comma-separated GitHub logins allowed to use the MCP (everyone else gets no tools).
+- `VAULT_BRANCH` — branch of the vault repo to read (default `main`).
 - `VAULT_ALLOWED_PREFIXES` / `VAULT_DENIED_PREFIXES` — see [Access scope](#access-scope) above.
 
 ### 2. Create the KV namespace (stores OAuth grants)
@@ -97,7 +112,7 @@ Note each app's Client ID and generate a Client Secret.
 ### 5a. Run locally
 
 ```bash
-cp .dev.vars.example .dev.vars    # fill in with the LOCAL OAuth app + PAT
+cp .dev.vars.example .dev.vars    # LOCAL OAuth app, PAT, vault owner/repo/logins
 openssl rand -hex 32              # value for COOKIE_ENCRYPTION_KEY
 pnpm dev                          # http://localhost:8788/mcp
 ```
@@ -112,10 +127,13 @@ pnpm dlx @modelcontextprotocol/inspector@latest
 ### 5b. Deploy to production
 
 ```bash
-pnpm exec wrangler secret put GITHUB_CLIENT_ID       # PROD OAuth app
+pnpm exec wrangler secret put GITHUB_CLIENT_ID            # PROD OAuth app
 pnpm exec wrangler secret put GITHUB_CLIENT_SECRET
-pnpm exec wrangler secret put COOKIE_ENCRYPTION_KEY  # openssl rand -hex 32
-pnpm exec wrangler secret put VAULT_GITHUB_TOKEN     # read-only fine-grained PAT
+pnpm exec wrangler secret put COOKIE_ENCRYPTION_KEY       # openssl rand -hex 32
+pnpm exec wrangler secret put VAULT_GITHUB_TOKEN          # read-only fine-grained PAT
+pnpm exec wrangler secret put VAULT_OWNER                 # GitHub owner of the vault repo
+pnpm exec wrangler secret put VAULT_REPO                  # vault repo name
+pnpm exec wrangler secret put VAULT_ALLOWED_GITHUB_LOGINS # comma-separated allowed logins
 pnpm run deploy
 ```
 

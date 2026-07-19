@@ -1,4 +1,5 @@
 import { Octokit } from "octokit";
+import type { VaultEnvConfig } from "./config";
 
 /**
  * Read-only access layer over the GitHub-hosted Obsidian vault.
@@ -31,8 +32,8 @@ export type SearchHit = {
 
 const NOTE_EXTENSIONS = [".md", ".markdown"];
 
-/** Read config from the Worker env, applying defaults. */
-export function vaultConfigFromEnv(env: Env): VaultConfig {
+/** Build the vault-read config from the already-validated env (defaults applied in parseEnv). */
+export function vaultConfigFromEnv(env: VaultEnvConfig): VaultConfig {
 	return {
 		owner: env.VAULT_OWNER,
 		repo: env.VAULT_REPO,

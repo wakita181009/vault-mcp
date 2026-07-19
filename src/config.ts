@@ -9,9 +9,9 @@ import { z } from "zod";
  * schema checks the actual values once, up front, so a misconfigured deploy
  * fails loudly with a precise message.
  *
- * Only string secrets and vars are validated. Bindings (KV, the Durable Object
- * namespace, the injected OAuth provider) are objects the runtime supplies and
- * are passed through untouched.
+ * Only string secrets and vars are validated and returned. Bindings (KV, the
+ * Durable Object namespace, the injected OAuth provider) are stripped from the
+ * returned config — access them via the raw `env` / `this.env` where needed.
  */
 
 // The cookie signing key is documented as `openssl rand -hex 32` (64 chars) and
@@ -19,6 +19,11 @@ import { z } from "zod";
 // So any sufficiently long string is valid — we guard length, not hex format,
 // to avoid rejecting legitimate non-hex keys while catching truncated/placeholder ones.
 const MIN_COOKIE_KEY_LENGTH = 32;
+
+// Generic tooling/dotfile dirs that should never be exposed as notes. Committed
+// here rather than in `wrangler.jsonc` vars so the default is visible and
+// code-reviewed; override per deploy with a `VAULT_DENIED_PREFIXES` secret.
+const DEFAULT_DENIED_PREFIXES = ".git/,.obsidian/,.claude/,claude-projects/";
 
 const envSchema = z.object({
 	// Secrets — `wrangler secret put` (prod) / `.dev.vars` (local).
@@ -32,25 +37,33 @@ const envSchema = z.object({
 	VAULT_GITHUB_TOKEN: z
 		.string()
 		.startsWith("github_pat_", "must be a fine-grained PAT (starts with `github_pat_`)"),
-	// Vars — `wrangler.jsonc` (may be overridden per environment).
+	// Vault target + access allowlist. Also secrets, not committed vars: this is a
+	// public template, so committing them would leak the private vault and who may use it.
 	VAULT_OWNER: z.string().min(1),
 	VAULT_REPO: z.string().min(1),
-	VAULT_BRANCH: z.string().min(1),
-	// List-shaped vars are allowed to be empty (empty = "no filter" / "nobody").
+	// Empty allowlist = nobody gets any tools (see `init` in index.ts).
 	VAULT_ALLOWED_GITHUB_LOGINS: z.string(),
-	VAULT_ALLOWED_PREFIXES: z.string(),
-	VAULT_DENIED_PREFIXES: z.string(),
+	// Optional overrides — no `wrangler.jsonc` vars; the defaults below let the
+	// Worker run with zero extra config. Set as a secret to override per deploy.
+	VAULT_BRANCH: z.string().min(1).default("main"),
+	// List-shaped; empty = "no allow filter" (whole repo).
+	VAULT_ALLOWED_PREFIXES: z.string().default(""),
+	VAULT_DENIED_PREFIXES: z.string().default(DEFAULT_DENIED_PREFIXES),
 });
+
+/** Validated env config with defaults applied — the return type of `parseEnv`. */
+export type VaultEnvConfig = z.infer<typeof envSchema>;
 
 /**
  * Validate the Worker env, throwing an aggregated, secret-safe error if any
- * required key is missing or malformed. Returns the same `env` (narrowed to a
- * validated type) so callers can chain: `const env = parseEnv(rawEnv)`.
+ * required key is missing or malformed. Returns the parsed config with defaults
+ * applied (so optional overrides resolve to their defaults), which callers use
+ * directly: `const config = parseEnv(rawEnv)`.
  *
  * zod's default messages never echo the offending value, so nothing sensitive
  * reaches the logs.
  */
-export function parseEnv(env: Env): Env {
+export function parseEnv(env: Env): VaultEnvConfig {
 	const result = envSchema.safeParse(env);
 	if (!result.success) {
 		const issues = result.error.issues
@@ -58,5 +71,5 @@ export function parseEnv(env: Env): Env {
 			.join("\n");
 		throw new Error(`Invalid Worker environment:\n${issues}`);
 	}
-	return env;
+	return result.data;
 }
