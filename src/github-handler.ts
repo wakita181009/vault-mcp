@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import type { AuthRequest, OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { Hono } from "hono";
 import { Octokit } from "octokit";
+import { z } from "zod";
 import { fetchUpstreamAuthToken, getUpstreamAuthorizeUrl, type Props } from "./utils";
 import {
 	addApprovedClient,
@@ -160,11 +161,18 @@ app.get("/callback", async (c) => {
 		return c.text("Invalid OAuth request data", 400);
 	}
 
+	// GitHub sends ?code=... on a successful authorization; reject early at the
+	// boundary if it is missing or empty instead of passing undefined downstream.
+	const codeResult = z.string().min(1).safeParse(c.req.query("code"));
+	if (!codeResult.success) {
+		return c.text("Missing authorization code", 400);
+	}
+
 	// Exchange the code for an access token
 	const [accessToken, errResponse] = await fetchUpstreamAuthToken({
 		client_id: c.env.GITHUB_CLIENT_ID,
 		client_secret: c.env.GITHUB_CLIENT_SECRET,
-		code: c.req.query("code"),
+		code: codeResult.data,
 		redirect_uri: new URL("/callback", c.req.url).href,
 		upstream_url: "https://github.com/login/oauth/access_token",
 	});
