@@ -38,8 +38,6 @@ const envSchema = z.object({
 	VAULT_DENIED_PREFIXES: z.string(),
 });
 
-export type ValidatedEnvVars = z.infer<typeof envSchema>;
-
 /**
  * Validate the Worker env, throwing an aggregated, secret-safe error if any
  * required key is missing or malformed. Returns the same `env` (narrowed to a
