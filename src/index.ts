@@ -2,6 +2,7 @@ import OAuthProvider from "@cloudflare/workers-oauth-provider";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpAgent } from "agents/mcp";
 import { z } from "zod";
+import { parseEnv } from "./config";
 import { GitHubHandler } from "./github-handler";
 import type { Props } from "./utils";
 import { parseList, VaultClient, VaultError, vaultConfigFromEnv } from "./vault";
@@ -16,14 +17,18 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 	});
 
 	async init() {
+		// Fail fast on a misconfigured deploy: validate secrets/vars before wiring
+		// any tools, so problems surface as a clear boot error, not a mid-request 500.
+		const env = parseEnv(this.env);
+
 		// Gate the entire toolset on the login allowlist. This is a private vault,
 		// so anyone who is not explicitly allowed gets no tools at all.
-		const allowed = new Set(parseList(this.env.ALLOWED_GITHUB_LOGINS));
+		const allowed = new Set(parseList(env.ALLOWED_GITHUB_LOGINS));
 		if (!allowed.has(this.props!.login)) {
 			return;
 		}
 
-		const client = new VaultClient(vaultConfigFromEnv(this.env));
+		const client = new VaultClient(vaultConfigFromEnv(env));
 
 		this.server.tool(
 			"list_notes",
