@@ -19,13 +19,18 @@ describe("getUpstreamAuthorizeUrl", () => {
 		expect(parsed.searchParams.get("state")).toBe("state-123");
 	});
 
-	it("omits state when not provided", () => {
+	it("url-encodes parameter values", () => {
 		const url = getUpstreamAuthorizeUrl({
 			upstream_url: "https://github.com/login/oauth/authorize",
 			client_id: "cid",
 			scope: "read:user",
-			redirect_uri: "https://mcp.example/callback",
+			redirect_uri: "https://mcp.example/callback?foo=bar baz",
+			state: "a/b+c=",
 		});
-		expect(new URL(url).searchParams.has("state")).toBe(false);
+		const parsed = new URL(url);
+		expect(parsed.searchParams.get("redirect_uri")).toBe(
+			"https://mcp.example/callback?foo=bar baz",
+		);
+		expect(parsed.searchParams.get("state")).toBe("a/b+c=");
 	});
 });
