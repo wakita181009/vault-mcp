@@ -24,7 +24,8 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 		// Gate the entire toolset on the login allowlist. This is a private vault,
 		// so anyone who is not explicitly allowed gets no tools at all.
 		const allowed = new Set(parseList(env.ALLOWED_GITHUB_LOGINS));
-		if (!allowed.has(this.props!.login)) {
+		const login = this.props?.login;
+		if (login === undefined || !allowed.has(login)) {
 			return;
 		}
 
@@ -113,6 +114,6 @@ export default new OAuthProvider({
 	apiRoute: "/mcp",
 	authorizeEndpoint: "/authorize",
 	clientRegistrationEndpoint: "/register",
-	defaultHandler: GitHubHandler as any,
+	defaultHandler: GitHubHandler as unknown as ExportedHandler<Env>,
 	tokenEndpoint: "/token",
 });

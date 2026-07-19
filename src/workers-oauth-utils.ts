@@ -436,7 +436,7 @@ export interface ApprovalDialogOptions {
 	 * Arbitrary state data to pass through the approval flow
 	 * Will be encoded in the form and returned when approval is complete
 	 */
-	state: Record<string, any>;
+	state: Record<string, unknown>;
 	/**
 	 * CSRF token to include in the form
 	 */
@@ -845,7 +845,7 @@ async function verifySignature(
 	const enc = new TextEncoder();
 	try {
 		const signatureBytes = new Uint8Array(
-			signatureHex.match(/.{1,2}/g)!.map((byte) => Number.parseInt(byte, 16)),
+			(signatureHex.match(/.{1,2}/g) ?? []).map((byte) => Number.parseInt(byte, 16)),
 		);
 		return await crypto.subtle.verify("HMAC", key, signatureBytes.buffer, enc.encode(data));
 	} catch (_e) {

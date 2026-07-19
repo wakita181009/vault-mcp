@@ -70,7 +70,7 @@ app.post("/authorize", async (c) => {
 			return c.text("Invalid state data", 400);
 		}
 
-		if (!state.oauthReqInfo || !state.oauthReqInfo.clientId) {
+		if (!state.oauthReqInfo?.clientId) {
 			return c.text("Invalid request", 400);
 		}
 
@@ -91,13 +91,14 @@ app.post("/authorize", async (c) => {
 		headers.append("Set-Cookie", sessionBindingCookie);
 
 		return redirectToGithub(c.req.raw, stateToken, Object.fromEntries(headers));
-	} catch (error: any) {
+	} catch (error) {
 		console.error("POST /authorize error:", error);
 		if (error instanceof OAuthError) {
 			return error.toResponse();
 		}
 		// Unexpected non-OAuth error
-		return c.text(`Internal server error: ${error.message}`, 500);
+		const message = error instanceof Error ? error.message : String(error);
+		return c.text(`Internal server error: ${message}`, 500);
 	}
 });
 
@@ -147,7 +148,7 @@ app.get("/callback", async (c) => {
 		const result = await validateOAuthState(c.req.raw, c.env.OAUTH_KV);
 		oauthReqInfo = result.oauthReqInfo;
 		clearSessionCookie = result.clearCookie;
-	} catch (error: any) {
+	} catch (error) {
 		if (error instanceof OAuthError) {
 			return error.toResponse();
 		}
