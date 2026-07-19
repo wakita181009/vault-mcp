@@ -18,8 +18,8 @@ importers:
         specifier: ^0.17.4
         version: 0.17.4(@babel/core@8.0.1)(@babel/runtime@7.29.7)(react@19.2.7)(rolldown@1.2.0)(zod@4.4.3)
       hono:
-        specifier: ^4.12.31
-        version: 4.12.31
+        specifier: ^4.12.30
+        version: 4.12.30
       octokit:
         specifier: ^5.0.5
         version: 5.0.5
@@ -1123,10 +1123,6 @@ packages:
 
   hono@4.12.30:
     resolution: {integrity: sha512-emn+JoJjrN9YTpRDS5it/UI2SO9BAE37T6I3d963RxcZ81G9A4pr2SZTEiiaiKbzx+NKRg5BZ89fCL7gCJCUog==}
-    engines: {node: '>=16.9.0'}
-
-  hono@4.12.31:
-    resolution: {integrity: sha512-zJIHFrl6bq3RDd2YusFNCDlM8qUprxKswyi/OPzPyzKDdyBXDqWx8bZlZ7R+saTdSTatUmb3O7K4SspGPaEOQg==}
     engines: {node: '>=16.9.0'}
 
   http-errors@2.0.1:
@@ -2485,8 +2481,6 @@ snapshots:
       function-bind: 1.1.2
 
   hono@4.12.30: {}
-
-  hono@4.12.31: {}
 
   http-errors@2.0.1:
     dependencies:
