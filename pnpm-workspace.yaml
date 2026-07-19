@@ -1,3 +1,5 @@
 allowBuilds:
+  core-js-pure: false
   esbuild: true
+  sharp: false
   workerd: true
