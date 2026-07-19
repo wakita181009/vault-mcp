@@ -1,0 +1,25 @@
+{
+	"name": "vault-mcp",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Authenticated remote MCP server on Cloudflare Workers that exposes the wakita181009/vault Obsidian vault (read-only) to claude.ai and Claude Code.",
+	"scripts": {
+		"deploy": "wrangler deploy",
+		"dev": "wrangler dev",
+		"start": "wrangler dev",
+		"cf-typegen": "wrangler types",
+		"type-check": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@cloudflare/workers-oauth-provider": "^0.8.2",
+		"@modelcontextprotocol/sdk": "^1.29.0",
+		"agents": "^0.17.4",
+		"hono": "^4.12.31",
+		"octokit": "^5.0.5",
+		"zod": "^4.4.3"
+	},
+	"devDependencies": {
+		"typescript": "6.0.3",
+		"wrangler": "^4.112.0"
+	}
+}

@@ -1,0 +1,14 @@
+# Local dev secrets for `wrangler dev`. Copy to `.dev.vars` and fill in.
+# `.dev.vars` is gitignored — never commit real values.
+
+# GitHub OAuth App used for LOGIN (gates who may connect to this MCP).
+GITHUB_CLIENT_ID=<your github oauth app client id>
+GITHUB_CLIENT_SECRET=<your github oauth app client secret>
+
+# `openssl rand -hex 32`
+COOKIE_ENCRYPTION_KEY=<32-byte hex string>
+
+# Read-only fine-grained PAT used by the server to READ the vault repo.
+# Scope: Contents = Read-only, limited to wakita181009/vault only.
+# MUST be different from any read/write PAT used by Obsidian Git.
+VAULT_GITHUB_TOKEN=<github_pat_...>
