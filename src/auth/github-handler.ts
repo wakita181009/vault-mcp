@@ -3,6 +3,7 @@ import type { AuthRequest, OAuthHelpers } from "@cloudflare/workers-oauth-provid
 import { Hono } from "hono";
 import { Octokit } from "octokit";
 import { z } from "zod";
+import { renderApprovalDialog } from "./approval-dialog";
 import { fetchUpstreamAuthToken, getUpstreamAuthorizeUrl, type Props } from "./utils";
 import {
 	addApprovedClient,
@@ -11,7 +12,6 @@ import {
 	generateCSRFProtection,
 	isClientApproved,
 	OAuthError,
-	renderApprovalDialog,
 	validateCSRFToken,
 	validateOAuthState,
 } from "./workers-oauth-utils";

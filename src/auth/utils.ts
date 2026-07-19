@@ -51,16 +51,12 @@ export async function fetchUpstreamAuthToken({
 	redirect_uri,
 	upstream_url,
 }: {
-	code: string | undefined;
+	code: string;
 	upstream_url: string;
 	client_secret: string;
 	redirect_uri: string;
 	client_id: string;
 }): Promise<[string, null] | [null, Response]> {
-	if (!code) {
-		return [null, new Response("Missing code", { status: 400 })];
-	}
-
 	const resp = await fetch(upstream_url, {
 		body: new URLSearchParams({ client_id, client_secret, code, redirect_uri }).toString(),
 		headers: {
@@ -69,12 +65,12 @@ export async function fetchUpstreamAuthToken({
 		method: "POST",
 	});
 	if (!resp.ok) {
-		console.log(await resp.text());
+		console.error("Upstream token exchange failed:", await resp.text());
 		return [null, new Response("Failed to fetch access token", { status: 500 })];
 	}
 	const body = await resp.formData();
-	const accessToken = body.get("access_token") as string;
-	if (!accessToken) {
+	const accessToken = body.get("access_token");
+	if (typeof accessToken !== "string" || accessToken.length === 0) {
 		return [null, new Response("Missing access token", { status: 400 })];
 	}
 	return [accessToken, null];

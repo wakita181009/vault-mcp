@@ -1,10 +1,10 @@
-import OAuthProvider from "@cloudflare/workers-oauth-provider";
+import OAuthProvider, { type OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpAgent } from "agents/mcp";
 import { z } from "zod";
+import { GitHubHandler } from "./auth/github-handler";
+import type { Props } from "./auth/utils";
 import { parseEnv } from "./config";
-import { GitHubHandler } from "./github-handler";
-import type { Props } from "./utils";
 import { parseList, VaultClient, VaultError, vaultConfigFromEnv } from "./vault";
 
 const DEFAULT_SEARCH_LIMIT = 10;
@@ -114,6 +114,12 @@ export default new OAuthProvider({
 	apiRoute: "/mcp",
 	authorizeEndpoint: "/authorize",
 	clientRegistrationEndpoint: "/register",
-	defaultHandler: GitHubHandler as unknown as ExportedHandler<Env>,
+	// The Hono app expects `OAUTH_PROVIDER` on env, which the provider injects at
+	// runtime but is absent from the generated `Env` type. Cast only that binding
+	// rather than the whole handler, so the fetch signature stays type-checked.
+	defaultHandler: {
+		fetch: (req, env, ctx) =>
+			GitHubHandler.fetch(req, env as Env & { OAUTH_PROVIDER: OAuthHelpers }, ctx),
+	} satisfies ExportedHandler<Env>,
 	tokenEndpoint: "/token",
 });

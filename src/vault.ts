@@ -84,6 +84,13 @@ function isNote(path: string): boolean {
 	return NOTE_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
+type GitTreeEntry = { path?: string; type?: string; size?: number };
+
+/** Narrows a git tree entry to a blob (file) with a definite string path. */
+function isBlobEntry<T extends GitTreeEntry>(entry: T): entry is T & { path: string } {
+	return entry.type === "blob" && typeof entry.path === "string";
+}
+
 export class VaultClient {
 	private readonly octokit: Octokit;
 
@@ -100,8 +107,8 @@ export class VaultClient {
 		const dirPrefix = dir ? normalizePath(dir) : null;
 
 		const notes = tree
-			.filter((entry) => entry.type === "blob" && typeof entry.path === "string")
-			.map((entry) => ({ path: entry.path as string, size: entry.size ?? 0 }))
+			.filter(isBlobEntry)
+			.map((entry) => ({ path: entry.path, size: entry.size ?? 0 }))
 			.filter((entry) => isNote(entry.path))
 			.filter((entry) => isPathVisible(entry.path, this.config))
 			.filter((entry) => (dirPrefix ? matchesPrefix(entry.path, dirPrefix) : true))
@@ -172,7 +179,7 @@ export class VaultClient {
 			if (hits.size >= limit) break;
 		}
 
-		return [...hits.values()].slice(0, limit);
+		return [...hits.values()];
 	}
 
 	private async contentSearch(query: string, limit: number): Promise<SearchHit[]> {
@@ -194,8 +201,8 @@ export class VaultClient {
 		const { tree } = await this.fetchTree();
 		const needle = query.toLowerCase();
 		return tree
-			.filter((entry) => entry.type === "blob" && typeof entry.path === "string")
-			.map((entry) => entry.path as string)
+			.filter(isBlobEntry)
+			.map((entry) => entry.path)
 			.filter((path) => path.toLowerCase().includes(needle))
 			.map((path) => ({ path, fragments: [] }));
 	}
