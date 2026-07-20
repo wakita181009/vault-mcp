@@ -1,30 +1,22 @@
+import type { z } from "zod";
+import type { envSchema } from "./config";
+
 /**
- * Secret bindings are set via `wrangler secret put` (prod) and `.dev.vars` (local),
- * so they are absent from the `wrangler types`-generated `Env`. Declare them here.
+ * The raw Worker env — exactly the keys `parseEnv` reads, derived from the one
+ * zod schema in `src/config.ts` so there is no second hand-maintained key list.
+ * `z.input` keeps the optional overrides (VAULT_BRANCH etc.) optional here; they
+ * are absent until set, and `parseEnv` applies their defaults.
  *
- * Two surfaces need them: the global `Env` (used as `c.env` in Hono) and the
+ * Two surfaces need this: the global `Env` (used as `c.env` in Hono) and the
  * `Cloudflare.Env` namespace (the type of `env` imported from `cloudflare:workers`).
+ * Both are absent from the `wrangler types` output, so we augment them here.
  */
-interface VaultSecrets {
-	/** GitHub OAuth App credentials — gate who may log in to the MCP. */
-	GITHUB_CLIENT_ID: string;
-	GITHUB_CLIENT_SECRET: string;
-	/** `openssl rand -hex 32` — encrypts the approval cookie. */
-	COOKIE_ENCRYPTION_KEY: string;
-	/** Read-only fine-grained PAT the server uses to read the vault repo. */
-	VAULT_GITHUB_TOKEN: string;
-	/**
-	 * Vault target and access allowlist. Secrets, not `wrangler.jsonc` vars:
-	 * this is a public template, so committing them would leak the private
-	 * vault's identity and who may access it.
-	 */
-	VAULT_OWNER: string;
-	VAULT_REPO: string;
-	VAULT_ALLOWED_GITHUB_LOGINS: string;
-}
+type VaultEnv = z.input<typeof envSchema>;
 
-interface Env extends VaultSecrets {}
+declare global {
+	interface Env extends VaultEnv {}
 
-declare namespace Cloudflare {
-	interface Env extends VaultSecrets {}
+	namespace Cloudflare {
+		interface Env extends VaultEnv {}
+	}
 }

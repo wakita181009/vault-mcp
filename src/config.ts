@@ -25,7 +25,7 @@ const MIN_COOKIE_KEY_LENGTH = 32;
 // code-reviewed; override per deploy with a `VAULT_DENIED_PREFIXES` secret.
 const DEFAULT_DENIED_PREFIXES = ".git/,.obsidian/,.claude/";
 
-const envSchema = z.object({
+export const envSchema = z.object({
 	// Secrets — `wrangler secret put` (prod) / `.dev.vars` (local).
 	GITHUB_CLIENT_ID: z.string().min(1),
 	GITHUB_CLIENT_SECRET: z.string().min(1),
@@ -41,12 +41,8 @@ const envSchema = z.object({
 	// public template, so committing them would leak the private vault and who may use it.
 	VAULT_OWNER: z.string().min(1),
 	VAULT_REPO: z.string().min(1),
-	// Empty allowlist = nobody gets any tools (see `init` in index.ts).
-	VAULT_ALLOWED_GITHUB_LOGINS: z.string(),
-	// Optional overrides — no `wrangler.jsonc` vars; the defaults below let the
-	// Worker run with zero extra config. Set as a secret to override per deploy.
 	VAULT_BRANCH: z.string().min(1).default("main"),
-	// List-shaped; empty = "no allow filter" (whole repo).
+	VAULT_ALLOWED_GITHUB_LOGINS: z.string(),
 	VAULT_ALLOWED_PREFIXES: z.string().default(""),
 	VAULT_DENIED_PREFIXES: z.string().default(DEFAULT_DENIED_PREFIXES),
 });

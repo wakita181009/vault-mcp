@@ -17,17 +17,9 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 	});
 
 	async init() {
-		// Fail fast on a misconfigured deploy: validate secrets/vars before wiring
-		// any tools, so problems surface as a clear boot error, not a mid-request 500.
+		// Fail fast on a misconfigured deploy (see src/config.ts). The login
+		// allowlist itself is gated earlier, in `guardedApiHandler` below.
 		const env = parseEnv(this.env);
-
-		// Gate the entire toolset on the login allowlist. This is a private vault,
-		// so anyone who is not explicitly allowed gets no tools at all.
-		const allowed = new Set(parseList(env.VAULT_ALLOWED_GITHUB_LOGINS));
-		const login = this.props?.login;
-		if (login === undefined || !allowed.has(login)) {
-			return;
-		}
 
 		const client = new VaultClient(vaultConfigFromEnv(env));
 
@@ -109,14 +101,28 @@ function errorResult(error: unknown) {
 	return { content: [{ type: "text" as const, text: message }], isError: true };
 }
 
+const vaultMcpHandler = VaultMCP.serve("/mcp");
+
+// OAuthProvider sets `ctx.props` before this runs, so gate the login allowlist
+// here — before the `VaultMCP` Durable Object is even created.
+const guardedApiHandler = {
+	fetch: (req: Request, env: Env, ctx: ExecutionContext) => {
+		const login = (ctx as ExecutionContext & { props?: Props }).props?.login;
+		const config = parseEnv(env);
+		if (login === undefined || !parseList(config.VAULT_ALLOWED_GITHUB_LOGINS).includes(login)) {
+			return Promise.resolve(new Response("Forbidden", { status: 403 }));
+		}
+		return vaultMcpHandler.fetch(req, env, ctx);
+	},
+} satisfies ExportedHandler<Env>;
+
 export default new OAuthProvider({
-	apiHandler: VaultMCP.serve("/mcp"),
+	apiHandler: guardedApiHandler,
 	apiRoute: "/mcp",
 	authorizeEndpoint: "/authorize",
 	clientRegistrationEndpoint: "/register",
-	// The Hono app expects `OAUTH_PROVIDER` on env, which the provider injects at
-	// runtime but is absent from the generated `Env` type. Cast only that binding
-	// rather than the whole handler, so the fetch signature stays type-checked.
+	// `OAUTH_PROVIDER` is injected at runtime but absent from the generated `Env`
+	// type; cast just this binding so the fetch signature stays type-checked.
 	defaultHandler: {
 		fetch: (req, env, ctx) =>
 			GitHubHandler.fetch(req, env as Env & { OAUTH_PROVIDER: OAuthHelpers }, ctx),
