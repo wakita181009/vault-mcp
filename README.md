@@ -4,19 +4,21 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Authenticated **remote MCP server** on Cloudflare Workers that exposes a private, GitHub-hosted
-Obsidian vault **read-only** to both **claude.ai** (Web / Desktop / iPhone) and **Claude Code** —
-one free deployment serving every Claude surface.
+Obsidian vault to both **claude.ai** (Web / Desktop / iPhone) and **Claude Code** — one free
+deployment serving every Claude surface. It reads notes and can create/overwrite them; it never
+deletes.
 
-It reads the vault through the GitHub API, so the source repo can stay private and there is no
-always-on machine to maintain. Deploy your own instance with C3 (one command) or clone it manually
-— both are covered below. Your vault target is set via secrets, so the committed config ships generic.
+It works against the vault through the GitHub API, so the source repo can stay private and there is
+no always-on machine to maintain. Deploy your own instance with C3 (one command) or clone it
+manually — both are covered below. Your vault target is set via secrets, so the committed config
+ships generic.
 
 ## What it does
 
 - **Auth:** GitHub OAuth via [`@cloudflare/workers-oauth-provider`](https://github.com/cloudflare/workers-oauth-provider).
   Users sign in with GitHub; only logins in `VAULT_ALLOWED_GITHUB_LOGINS` get any tools at all.
-- **Reads the vault** through the GitHub API using a **separate read-only fine-grained PAT**
-  (`VAULT_GITHUB_TOKEN`), independent of the read/write PAT Obsidian Git uses to push.
+- **Accesses the vault** through the GitHub API using a **separate fine-grained PAT**
+  (`VAULT_GITHUB_TOKEN`) scoped to Contents Read + Write on the one vault repo.
 - **Transport:** Streamable HTTP at `/mcp`.
 
 ### Tools
@@ -25,6 +27,7 @@ always-on machine to maintain. Deploy your own instance with C3 (one command) or
 | --- | --- |
 | `list_notes` | List note (`.md`) paths, optionally scoped to a subdirectory. |
 | `read_note` | Read the raw markdown of one note by repo-relative path. |
+| `write_note` | Create a new note or overwrite an existing one (markdown paths only; never deletes). |
 | `search_notes` | Content search (GitHub code search, indexed) + filename search, merged. |
 
 ## Two GitHub tokens, two jobs
@@ -32,11 +35,11 @@ always-on machine to maintain. Deploy your own instance with C3 (one command) or
 | Purpose | Token | Scope |
 | --- | --- | --- |
 | **Who may log in** | GitHub **OAuth App** (`GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`) | `read:user` only |
-| **What the server reads** | read-only **fine-grained PAT** (`VAULT_GITHUB_TOKEN`) | Contents: Read, limited to your vault repo |
+| **What the server accesses** | **fine-grained PAT** (`VAULT_GITHUB_TOKEN`) | Contents: Read & Write, limited to your vault repo |
 
-Keeping them separate means logging in never grants repo write, and the read token is
-scoped to exactly one repo. **Never reuse a read/write PAT here** (e.g. the one Obsidian Git
-uses to push) — this server only ever needs read access.
+Keeping them separate means logging in never grants repo write via the OAuth app, and the
+vault PAT is scoped to exactly one repo. **Keep the PAT scoped to that single repo** — this
+server needs read and write on the vault, but nothing beyond it.
 
 ## Access scope
 
@@ -46,8 +49,10 @@ either per deploy with a secret of the same name (`wrangler secret put`):
 - `VAULT_ALLOWED_PREFIXES` — if non-empty, only paths under these prefixes are exposed (default: empty = whole repo).
 - `VAULT_DENIED_PREFIXES` — always hidden (default: `.git/,.obsidian/,.claude/`).
 
-`read_note` also rejects absolute paths and `..` traversal. To hide additional folders,
-override `VAULT_DENIED_PREFIXES` with your extra prefixes.
+`read_note` and `write_note` both reject absolute paths and `..` traversal, and `write_note`
+only accepts markdown paths — the deny/allow policy applies equally to reads and writes, so a
+write can never escape into `.git/`, `.obsidian/`, or agent dirs. To hide (and block writes to)
+additional folders, override `VAULT_DENIED_PREFIXES` with your extra prefixes.
 
 ## Quick start (C3)
 
@@ -92,12 +97,12 @@ pnpm exec wrangler kv namespace create OAUTH_KV
 
 Put the returned `id` into `wrangler.jsonc` under `kv_namespaces[0].id`.
 
-### 3. Create the read-only PAT for reading the vault
+### 3. Create the PAT for accessing the vault
 
 GitHub → Settings → Developer settings → **Fine-grained tokens** → Generate:
 
 - Resource owner: your account, Repository access: **Only** your vault repo
-- Permissions: **Contents → Read-only**
+- Permissions: **Contents → Read and write**
 
 Save the token for `VAULT_GITHUB_TOKEN` below.
 
@@ -133,7 +138,7 @@ pnpm dlx @modelcontextprotocol/inspector@latest
 pnpm exec wrangler secret put GITHUB_CLIENT_ID            # PROD OAuth app
 pnpm exec wrangler secret put GITHUB_CLIENT_SECRET
 pnpm exec wrangler secret put COOKIE_ENCRYPTION_KEY       # openssl rand -hex 32
-pnpm exec wrangler secret put VAULT_GITHUB_TOKEN          # read-only fine-grained PAT
+pnpm exec wrangler secret put VAULT_GITHUB_TOKEN          # fine-grained PAT, Contents R/W on the vault repo
 pnpm exec wrangler secret put VAULT_OWNER                 # GitHub owner of the vault repo
 pnpm exec wrangler secret put VAULT_REPO                  # vault repo name
 pnpm exec wrangler secret put VAULT_ALLOWED_GITHUB_LOGINS # comma-separated allowed logins
@@ -167,9 +172,9 @@ After changing `wrangler.jsonc` bindings/vars, rerun `pnpm cf-typegen`.
 ```
 src/
 ├── index.ts                   # OAuthProvider + VaultMCP (McpAgent) wiring; registers the tools
-├── tools.ts                   # MCP tool handlers (list/read/search) + result & allowlist helpers
+├── tools.ts                   # MCP tool handlers (list/read/write/search) + result & allowlist helpers
 ├── guard.ts                   # login-allowlist gate wrapping the MCP API handler
-├── vault.ts                   # GitHub API read layer: list/read/search + path-visibility policy
+├── vault.ts                   # GitHub API access layer: list/read/write/search + path-visibility policy
 ├── config.ts                  # env schema + defaults; parseEnv validates at startup
 ├── env.d.ts                   # secret bindings type augmentation
 └── auth/

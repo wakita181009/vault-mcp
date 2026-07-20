@@ -2,10 +2,12 @@ import { Octokit } from "octokit";
 import { parseEnv } from "./config";
 
 /**
- * Read-only access layer over the GitHub-hosted Obsidian vault.
+ * Access layer over the GitHub-hosted Obsidian vault.
  *
  * The vault is a private GitHub repo; Obsidian Git keeps it up to date, so the
- * GitHub API always sees the latest committed state. This layer never writes.
+ * GitHub API always sees the latest committed state. Reads dominate; the only
+ * mutation is `writeNote` (create/overwrite a single note), which is gated by
+ * the same path-visibility policy as reads. There is deliberately no delete.
  */
 
 export type VaultConfig = {
@@ -157,6 +159,59 @@ export class VaultClient {
 	}
 
 	/**
+	 * Create a new note or overwrite an existing one. Enforces the same path
+	 * guards as reads (traversal/absolute rejection, allow/deny policy) and only
+	 * accepts markdown paths, so writes can never reach `.git/`, `.obsidian/`, or
+	 * any non-note file. Returns whether the note was created (vs. updated).
+	 */
+	async writeNote(path: string, content: string): Promise<{ path: string; created: boolean }> {
+		const normalized = normalizePath(path);
+		if (normalized === null) {
+			throw new VaultError(`Invalid path: ${path}`);
+		}
+		if (!isNote(normalized)) {
+			throw new VaultError(`Not a note (.md/.markdown): ${normalized}`);
+		}
+		if (!isPathVisible(normalized, this.config)) {
+			throw new VaultError(`Path is not accessible: ${normalized}`);
+		}
+
+		// GitHub's contents API needs the current blob sha to overwrite; its
+		// absence means the file does not exist yet and this is a create.
+		const sha = await this.existingFileSha(normalized);
+		await this.octokit.rest.repos.createOrUpdateFileContents({
+			owner: this.config.owner,
+			repo: this.config.repo,
+			path: normalized,
+			message: `${sha ? "Update" : "Create"} ${normalized} via vault-mcp`,
+			content: encodeBase64Utf8(content),
+			branch: this.config.branch,
+			...(sha ? { sha } : {}),
+		});
+
+		return { path: normalized, created: sha === undefined };
+	}
+
+	private async existingFileSha(path: string): Promise<string | undefined> {
+		try {
+			const res = await this.octokit.rest.repos.getContent({
+				owner: this.config.owner,
+				repo: this.config.repo,
+				path,
+				ref: this.config.branch,
+			});
+			const data = res.data;
+			if (Array.isArray(data) || data.type !== "file") {
+				throw new VaultError(`Not a file: ${path}`);
+			}
+			return data.sha;
+		} catch (error) {
+			if (isNotFound(error)) return undefined;
+			throw error;
+		}
+	}
+
+	/**
 	 * Search notes. Combines GitHub content search (indexed, default branch) with
 	 * filename matching from the tree so results are useful even when the code
 	 * search index is cold or unavailable for the query.
@@ -233,4 +288,20 @@ function decodeBase64Utf8(b64: string): string {
 		bytes[i] = binary.charCodeAt(i);
 	}
 	return new TextDecoder().decode(bytes);
+}
+
+function encodeBase64Utf8(text: string): string {
+	const bytes = new TextEncoder().encode(text);
+	let binary = "";
+	for (const byte of bytes) {
+		binary += String.fromCharCode(byte);
+	}
+	return btoa(binary);
+}
+
+/** Whether an Octokit error is a 404 (file not found) rather than a real failure. */
+function isNotFound(error: unknown): boolean {
+	return (
+		typeof error === "object" && error !== null && (error as { status?: number }).status === 404
+	);
 }

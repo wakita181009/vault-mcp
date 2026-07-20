@@ -1,8 +1,11 @@
 import { VaultError } from "./vault";
 import type { VaultClient } from "./vault";
 
-/** The subset of VaultClient the tool handlers depend on. */
+/** The read subset of VaultClient the read tool handlers depend on. */
 export type VaultReader = Pick<VaultClient, "listNotes" | "readNote" | "searchNotes">;
+
+/** The write subset of VaultClient the write tool handler depends on. */
+export type VaultWriter = Pick<VaultClient, "writeNote">;
 
 /** MCP tool result: text content, optionally flagged as an error. */
 export type ToolResult = {
@@ -15,7 +18,8 @@ export function textResult(text: string): ToolResult {
 }
 
 export function errorResult(error: unknown): ToolResult {
-	const message = error instanceof VaultError ? error.message : `Vault read failed: ${String(error)}`;
+	const message =
+		error instanceof VaultError ? error.message : `Vault operation failed: ${String(error)}`;
 	return { content: [{ type: "text" as const, text: message }], isError: true };
 }
 
@@ -34,6 +38,19 @@ export async function readNoteHandler(client: VaultReader, path: string): Promis
 	try {
 		const note = await client.readNote(path);
 		return textResult(note.content);
+	} catch (error) {
+		return errorResult(error);
+	}
+}
+
+export async function writeNoteHandler(
+	client: VaultWriter,
+	path: string,
+	content: string,
+): Promise<ToolResult> {
+	try {
+		const { path: written, created } = await client.writeNote(path, content);
+		return textResult(`${created ? "Created" : "Updated"} ${written}`);
 	} catch (error) {
 		return errorResult(error);
 	}

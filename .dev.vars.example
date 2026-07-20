@@ -8,9 +8,8 @@ GITHUB_CLIENT_SECRET=<your github oauth app client secret>
 # `openssl rand -hex 32`
 COOKIE_ENCRYPTION_KEY=<32-byte hex string>
 
-# Read-only fine-grained PAT used by the server to READ the vault repo.
-# Scope: Contents = Read-only, limited to your vault repo only.
-# MUST be different from any read/write PAT used by Obsidian Git.
+# Fine-grained PAT used by the server to read and write the vault repo.
+# Scope: Contents = Read and write, limited to your vault repo only.
 VAULT_GITHUB_TOKEN=<github_pat_...>
 
 # Vault target + access allowlist. Secrets (not wrangler.jsonc vars) because this

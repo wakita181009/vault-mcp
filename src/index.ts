@@ -5,7 +5,7 @@ import { z } from "zod";
 import { GitHubHandler } from "./auth/github-handler";
 import type { Props } from "./auth/utils";
 import { createGuardedApiHandler } from "./guard";
-import { listNotesHandler, readNoteHandler, searchNotesHandler } from "./tools";
+import { listNotesHandler, readNoteHandler, searchNotesHandler, writeNoteHandler } from "./tools";
 import { VaultClient, vaultConfigFromEnv } from "./vault";
 import { version } from "../package.json";
 
@@ -40,6 +40,20 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 				path: z.string().describe("Repo-relative path to the note, e.g. 'user_profile/identity.md'."),
 			},
 			({ path }) => readNoteHandler(client, path),
+		);
+
+		this.server.tool(
+			"write_note",
+			"Create a new note or overwrite an existing one at a repo-relative path. Markdown files only.",
+			{
+				path: z
+					.string()
+					.describe("Repo-relative path to the note, e.g. 'user_profile/identity.md'."),
+				content: z
+					.string()
+					.describe("Full markdown content to write. Overwrites the note if it already exists."),
+			},
+			({ path, content }) => writeNoteHandler(client, path, content),
 		);
 
 		this.server.tool(

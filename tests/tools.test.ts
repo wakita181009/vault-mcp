@@ -7,6 +7,8 @@ import {
 	searchNotesHandler,
 	textResult,
 	type VaultReader,
+	type VaultWriter,
+	writeNoteHandler,
 } from "../src/tools";
 import { VaultError } from "../src/vault";
 
@@ -33,7 +35,7 @@ describe("textResult / errorResult", () => {
 	it("wraps a non-VaultError with a generic prefix", () => {
 		const result = errorResult(new Error("boom"));
 		expect(result.isError).toBe(true);
-		expect(result.content[0].text).toContain("Vault read failed:");
+		expect(result.content[0].text).toContain("Vault operation failed:");
 	});
 });
 
@@ -99,6 +101,37 @@ describe("readNoteHandler", () => {
 		};
 		const result = await readNoteHandler(client, "secret.md");
 		expect(result.isError).toBe(true);
+	});
+});
+
+describe("writeNoteHandler", () => {
+	const okWriter: VaultWriter = {
+		writeNote: async (path: string) => ({ path, created: true }),
+	};
+
+	it("reports a create", async () => {
+		const result = await writeNoteHandler(okWriter, "a.md", "body");
+		expect(result.content[0].text).toBe("Created a.md");
+		expect(result.isError).toBeUndefined();
+	});
+
+	it("reports an update", async () => {
+		const client: VaultWriter = {
+			writeNote: async (path: string) => ({ path, created: false }),
+		};
+		const result = await writeNoteHandler(client, "a.md", "body");
+		expect(result.content[0].text).toBe("Updated a.md");
+	});
+
+	it("returns an error result when the client throws", async () => {
+		const client: VaultWriter = {
+			writeNote: async () => {
+				throw new VaultError("not accessible");
+			},
+		};
+		const result = await writeNoteHandler(client, ".obsidian/x.md", "body");
+		expect(result.isError).toBe(true);
+		expect(result.content[0].text).toBe("not accessible");
 	});
 });
 

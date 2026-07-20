@@ -44,7 +44,7 @@ app.get("/authorize", async (c) => {
 		csrfToken,
 		server: {
 			description:
-				"Read-only remote MCP for a private GitHub-hosted Obsidian vault. Sign in with GitHub to connect.",
+				"Remote MCP for a private GitHub-hosted Obsidian vault (read notes and create/update them). Sign in with GitHub to connect.",
 			logo: "https://avatars.githubusercontent.com/u/314135?s=200&v=4",
 			name: "Vault MCP",
 		},

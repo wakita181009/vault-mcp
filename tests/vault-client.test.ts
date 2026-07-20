@@ -6,8 +6,9 @@ const gh = vi.hoisted(() => {
 	const getBlob = vi.fn();
 	const getTree = vi.fn();
 	const code = vi.fn();
+	const createOrUpdateFileContents = vi.fn();
 	const rest = {
-		repos: { getContent },
+		repos: { getContent, createOrUpdateFileContents },
 		git: { getBlob, getTree },
 		search: { code },
 	};
@@ -16,6 +17,7 @@ const gh = vi.hoisted(() => {
 		getBlob,
 		getTree,
 		code,
+		createOrUpdateFileContents,
 		Octokit: vi.fn(function Octokit() {
 			return { rest };
 		}),
@@ -122,6 +124,52 @@ describe("readNote", () => {
 	it("throws when the entry is not a file", async () => {
 		gh.getContent.mockResolvedValue({ data: { type: "submodule", sha: "s" } });
 		await expect(client.readNote("mod")).rejects.toThrow(/Not a file/);
+	});
+});
+
+describe("writeNote", () => {
+	const notFound = () => Object.assign(new Error("Not Found"), { status: 404 });
+
+	it("creates a note when it does not exist, base64-encoding UTF-8 content", async () => {
+		gh.getContent.mockRejectedValue(notFound());
+		gh.createOrUpdateFileContents.mockResolvedValue({ data: {} });
+
+		const result = await client.writeNote("notes/new.md", "body ☕");
+
+		expect(result).toEqual({ path: "notes/new.md", created: true });
+		const call = gh.createOrUpdateFileContents.mock.calls[0][0];
+		expect(call.content).toBe(b64("body ☕"));
+		expect(call.path).toBe("notes/new.md");
+		expect(call.branch).toBe("main");
+		expect(call.sha).toBeUndefined();
+		expect(call.message).toContain("Create");
+	});
+
+	it("overwrites an existing note, passing its current sha", async () => {
+		gh.getContent.mockResolvedValue({ data: { type: "file", sha: "old-sha" } });
+		gh.createOrUpdateFileContents.mockResolvedValue({ data: {} });
+
+		const result = await client.writeNote("notes/a.md", "updated");
+
+		expect(result).toEqual({ path: "notes/a.md", created: false });
+		const call = gh.createOrUpdateFileContents.mock.calls[0][0];
+		expect(call.sha).toBe("old-sha");
+		expect(call.message).toContain("Update");
+	});
+
+	it("rejects an invalid path before hitting the API", async () => {
+		await expect(client.writeNote("../escape.md", "x")).rejects.toBeInstanceOf(VaultError);
+		expect(gh.createOrUpdateFileContents).not.toHaveBeenCalled();
+	});
+
+	it("rejects a non-note path", async () => {
+		await expect(client.writeNote("notes/a.txt", "x")).rejects.toThrow(/Not a note/);
+		expect(gh.createOrUpdateFileContents).not.toHaveBeenCalled();
+	});
+
+	it("rejects a path hidden by policy", async () => {
+		await expect(client.writeNote(".obsidian/secret.md", "x")).rejects.toBeInstanceOf(VaultError);
+		expect(gh.createOrUpdateFileContents).not.toHaveBeenCalled();
 	});
 });
 
