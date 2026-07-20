@@ -67,8 +67,6 @@ export default new OAuthProvider({
 	apiRoute: "/mcp",
 	authorizeEndpoint: "/authorize",
 	clientRegistrationEndpoint: "/register",
-	// `OAUTH_PROVIDER` is injected at runtime but absent from the generated `Env`
-	// type; cast just this binding so the fetch signature stays type-checked.
 	defaultHandler: {
 		fetch: (req, env, ctx) =>
 			GitHubHandler.fetch(req, env as Env & { OAUTH_PROVIDER: OAuthHelpers }, ctx),
