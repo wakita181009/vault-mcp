@@ -25,10 +25,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: cp wrangler.jsonc.example wrangler.jsonc
-
-      - run: pnpm cf-typegen
-
       - run: pnpm lint
 
       - run: pnpm typecheck

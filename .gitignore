@@ -170,7 +170,3 @@ dist
 
 .dev.vars
 .wrangler/
-
-# Generated from wrangler.jsonc + .dev.vars via `pnpm cf-typegen`; embeds local
-# secret values as literal types, so it must never be committed.
-worker-configuration.d.ts

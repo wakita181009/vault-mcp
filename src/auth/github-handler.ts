@@ -4,7 +4,12 @@ import { Hono } from "hono";
 import { Octokit } from "octokit";
 import { z } from "zod";
 import { renderApprovalDialog } from "./approval-dialog";
-import { fetchUpstreamAuthToken, getUpstreamAuthorizeUrl, type Props } from "./utils";
+import {
+	fetchUpstreamAuthToken,
+	getUpstreamAuthorizeUrl,
+	redirectResponse,
+	type Props,
+} from "./utils";
 import {
 	addApprovedClient,
 	bindStateToSession,
@@ -82,7 +87,7 @@ app.post("/authorize", async (c) => {
 		headers.append("Set-Cookie", approvedClientCookie);
 		headers.append("Set-Cookie", sessionBindingCookie);
 
-		return redirectToGithub(c.req.raw, stateToken, Object.fromEntries(headers));
+		return redirectToGithub(c.req.raw, stateToken, headers);
 	} catch (error) {
 		console.error("POST /authorize error:", error);
 		if (error instanceof OAuthError) {
@@ -96,21 +101,18 @@ app.post("/authorize", async (c) => {
 async function redirectToGithub(
 	request: Request,
 	stateToken: string,
-	headers: Record<string, string> = {},
+	headers: HeadersInit = {},
 ) {
-	return new Response(null, {
-		headers: {
-			...headers,
-			location: getUpstreamAuthorizeUrl({
-				client_id: env.GITHUB_CLIENT_ID,
-				redirect_uri: new URL("/callback", request.url).href,
-				scope: "read:user",
-				state: stateToken,
-				upstream_url: "https://github.com/login/oauth/authorize",
-			}),
-		},
-		status: 302,
-	});
+	return redirectResponse(
+		getUpstreamAuthorizeUrl({
+			client_id: env.GITHUB_CLIENT_ID,
+			redirect_uri: new URL("/callback", request.url).href,
+			scope: "read:user",
+			state: stateToken,
+			upstream_url: "https://github.com/login/oauth/authorize",
+		}),
+		headers,
+	);
 }
 
 /**

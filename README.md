@@ -149,7 +149,7 @@ Endpoint: `https://vault-mcp.<subdomain>.workers.dev/mcp`
 ## Development
 
 ```bash
-pnpm typecheck     # tsc --noEmit
+pnpm typecheck     # verify generated Worker types, then run tsc --noEmit
 pnpm lint          # biome lint ./src
 pnpm cf-typegen    # regenerate worker-configuration.d.ts after editing wrangler.jsonc
 pnpm dev           # local Worker at :8788

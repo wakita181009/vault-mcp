@@ -8,12 +8,12 @@
 		"deploy": "wrangler deploy",
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
-		"cf-typegen": "wrangler types",
+		"cf-typegen": "wrangler types --strict-vars false",
 		"lint": "biome lint ./src",
 		"lint:fix": "biome lint --write ./src",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "wrangler types --strict-vars false --check && tsc --noEmit",
 		"prepare": "husky || true"
 	},
 	"dependencies": {

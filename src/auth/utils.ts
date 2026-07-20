@@ -23,6 +23,17 @@ export function getUpstreamAuthorizeUrl({
 	return upstream.href;
 }
 
+/** Builds a redirect response without collapsing repeated headers such as Set-Cookie. */
+export function redirectResponse(location: string, headers: HeadersInit = {}): Response {
+	const responseHeaders = new Headers(headers);
+	responseHeaders.set("Location", location);
+
+	return new Response(null, {
+		headers: responseHeaders,
+		status: 302,
+	});
+}
+
 /** Exchanges an authorization code for an access token. Returns `[token, null]` on success, `[null, errorResponse]` on failure. */
 export async function fetchUpstreamAuthToken({
 	client_id,
