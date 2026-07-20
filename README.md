@@ -1,5 +1,8 @@
 # vault-mcp
 
+[![codecov](https://codecov.io/gh/wakita181009/vault-mcp/branch/main/graph/badge.svg)](https://codecov.io/gh/wakita181009/vault-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Authenticated **remote MCP server** on Cloudflare Workers that exposes a private, GitHub-hosted
 Obsidian vault **read-only** to both **claude.ai** (Web / Desktop / iPhone) and **Claude Code** —
 one free deployment serving every Claude surface.
@@ -151,6 +154,7 @@ Endpoint: `https://vault-mcp.<subdomain>.workers.dev/mcp`
 ```bash
 pnpm typecheck     # verify generated Worker types, then run tsc --noEmit
 pnpm lint          # biome lint ./src
+pnpm test          # vitest run
 pnpm cf-typegen    # regenerate worker-configuration.d.ts after editing wrangler.jsonc
 pnpm dev           # local Worker at :8788
 ```
@@ -162,12 +166,17 @@ After changing `wrangler.jsonc` bindings/vars, rerun `pnpm cf-typegen`.
 
 ```
 src/
-├── index.ts               # OAuthProvider + VaultMCP (McpAgent); tools + login allowlist
-├── vault.ts               # GitHub API read layer: list/read/search + path-visibility policy
-├── github-handler.ts      # GitHub OAuth login flow (Hono)
-├── workers-oauth-utils.ts # OAuth state / CSRF / approval dialog (from the CF template)
-├── utils.ts               # upstream OAuth token exchange helpers
-└── env.d.ts               # secret bindings type augmentation
+├── index.ts                   # OAuthProvider + VaultMCP (McpAgent); tools + login allowlist
+├── vault.ts                   # GitHub API read layer: list/read/search + path-visibility policy
+├── config.ts                  # env schema + path-scope / vault-target defaults
+├── env.d.ts                   # secret bindings type augmentation
+└── auth/
+    ├── github-handler.ts      # GitHub OAuth login flow (Hono)
+    ├── approval-dialog.ts     # OAuth approval dialog + HTML sanitization
+    ├── workers-oauth-utils.ts # OAuth state / CSRF / approved-clients cookie
+    └── utils.ts               # upstream OAuth authorize URL + token exchange
 ```
+
+Tests live in `tests/` (Vitest), mirroring the `src/` layout.
 
 Derived from Cloudflare's `remote-mcp-github-oauth` template.
