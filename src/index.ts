@@ -5,7 +5,8 @@ import { z } from "zod";
 import { GitHubHandler } from "./auth/github-handler";
 import type { Props } from "./auth/utils";
 import { parseEnv } from "./config";
-import { parseList, VaultClient, VaultError, vaultConfigFromEnv } from "./vault";
+import { isLoginAllowed, listNotesHandler, readNoteHandler, searchNotesHandler } from "./tools";
+import { parseList, VaultClient, vaultConfigFromEnv } from "./vault";
 import { version } from "../package.json";
 
 const DEFAULT_SEARCH_LIMIT = 10;
@@ -33,16 +34,7 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 					.optional()
 					.describe("Optional repo-relative directory to scope the listing to, e.g. 'user_profile'."),
 			},
-			async ({ dir }) => {
-				try {
-					const { notes, truncated } = await client.listNotes(dir);
-					const lines = notes.map((n) => n.path);
-					const header = `${notes.length} note(s)${truncated ? " (tree truncated by GitHub)" : ""}:`;
-					return textResult([header, ...lines].join("\n"));
-				} catch (error) {
-					return errorResult(error);
-				}
-			},
+			({ dir }) => listNotesHandler(client, dir),
 		);
 
 		this.server.tool(
@@ -51,14 +43,7 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 			{
 				path: z.string().describe("Repo-relative path to the note, e.g. 'user_profile/identity.md'."),
 			},
-			async ({ path }) => {
-				try {
-					const note = await client.readNote(path);
-					return textResult(note.content);
-				} catch (error) {
-					return errorResult(error);
-				}
-			},
+			({ path }) => readNoteHandler(client, path),
 		);
 
 		this.server.tool(
@@ -74,32 +59,9 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 					.default(DEFAULT_SEARCH_LIMIT)
 					.describe("Maximum number of notes to return."),
 			},
-			async ({ query, limit }) => {
-				try {
-					const hits = await client.searchNotes(query, limit);
-					if (hits.length === 0) {
-						return textResult(`No notes matched: ${query}`);
-					}
-					const blocks = hits.map((hit) => {
-						const snippet = hit.fragments.length > 0 ? `\n${hit.fragments.join("\n---\n")}` : "";
-						return `## ${hit.path}${snippet}`;
-					});
-					return textResult(blocks.join("\n\n"));
-				} catch (error) {
-					return errorResult(error);
-				}
-			},
+			({ query, limit }) => searchNotesHandler(client, query, limit),
 		);
 	}
-}
-
-function textResult(text: string) {
-	return { content: [{ type: "text" as const, text }] };
-}
-
-function errorResult(error: unknown) {
-	const message = error instanceof VaultError ? error.message : `Vault read failed: ${String(error)}`;
-	return { content: [{ type: "text" as const, text: message }], isError: true };
 }
 
 const vaultMcpHandler = VaultMCP.serve("/mcp");
@@ -110,7 +72,7 @@ const guardedApiHandler = {
 	fetch: (req: Request, env: Env, ctx: ExecutionContext) => {
 		const login = (ctx as ExecutionContext & { props?: Props }).props?.login;
 		const config = parseEnv(env);
-		if (login === undefined || !parseList(config.VAULT_ALLOWED_GITHUB_LOGINS).includes(login)) {
+		if (!isLoginAllowed(login, parseList(config.VAULT_ALLOWED_GITHUB_LOGINS))) {
 			return Promise.resolve(new Response("Forbidden", { status: 403 }));
 		}
 		return vaultMcpHandler.fetch(req, env, ctx);
