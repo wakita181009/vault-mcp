@@ -34,5 +34,8 @@
 		"strict": true,
 		/* Skip type checking all .d.ts files. */
 		"skipLibCheck": true
-	}
+	},
+	/* App and test sources. The Node-run vitest.config.ts is excluded so its
+	   node: imports aren't checked against the Worker type environment. */
+	"include": ["src", "tests"]
 }

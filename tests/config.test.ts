@@ -50,4 +50,10 @@ describe("parseEnv", () => {
 	it("rejects a too-short cookie key", () => {
 		expect(() => parse({ COOKIE_ENCRYPTION_KEY: "short" })).toThrow(/COOKIE_ENCRYPTION_KEY/);
 	});
+
+	it("labels a top-level (non-object) env as (root)", () => {
+		expect(() => parseEnv("nope" as unknown as Parameters<typeof parseEnv>[0])).toThrow(
+			/\(root\)/,
+		);
+	});
 });
