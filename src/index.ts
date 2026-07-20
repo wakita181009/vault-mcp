@@ -4,7 +4,6 @@ import { McpAgent } from "agents/mcp";
 import { z } from "zod";
 import { GitHubHandler } from "./auth/github-handler";
 import type { Props } from "./auth/utils";
-import { parseEnv } from "./config";
 import { isLoginAllowed, listNotesHandler, readNoteHandler, searchNotesHandler } from "./tools";
 import { parseList, VaultClient, vaultConfigFromEnv } from "./vault";
 import { version } from "../package.json";
@@ -19,11 +18,7 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 	});
 
 	async init() {
-		// Fail fast on a misconfigured deploy (see src/config.ts). The login
-		// allowlist itself is gated earlier, in `guardedApiHandler` below.
-		const env = parseEnv(this.env);
-
-		const client = new VaultClient(vaultConfigFromEnv(env));
+		const client = new VaultClient(vaultConfigFromEnv(this.env));
 
 		this.server.tool(
 			"list_notes",
@@ -71,8 +66,9 @@ const vaultMcpHandler = VaultMCP.serve("/mcp");
 const guardedApiHandler = {
 	fetch: (req: Request, env: Env, ctx: ExecutionContext) => {
 		const login = (ctx as ExecutionContext & { props?: Props }).props?.login;
-		const config = parseEnv(env);
-		if (!isLoginAllowed(login, parseList(config.VAULT_ALLOWED_GITHUB_LOGINS))) {
+		// Only the allowlist is needed here; the rest of the env is validated a
+		// step later when the Durable Object runs init() (see vaultConfigFromEnv).
+		if (!isLoginAllowed(login, parseList(env.VAULT_ALLOWED_GITHUB_LOGINS))) {
 			return Promise.resolve(new Response("Forbidden", { status: 403 }));
 		}
 		return vaultMcpHandler.fetch(req, env, ctx);
