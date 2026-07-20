@@ -166,9 +166,11 @@ After changing `wrangler.jsonc` bindings/vars, rerun `pnpm cf-typegen`.
 
 ```
 src/
-├── index.ts                   # OAuthProvider + VaultMCP (McpAgent); tools + login allowlist
+├── index.ts                   # OAuthProvider + VaultMCP (McpAgent) wiring; registers the tools
+├── tools.ts                   # MCP tool handlers (list/read/search) + result & allowlist helpers
+├── guard.ts                   # login-allowlist gate wrapping the MCP API handler
 ├── vault.ts                   # GitHub API read layer: list/read/search + path-visibility policy
-├── config.ts                  # env schema + path-scope / vault-target defaults
+├── config.ts                  # env schema + defaults; parseEnv validates at startup
 ├── env.d.ts                   # secret bindings type augmentation
 └── auth/
     ├── github-handler.ts      # GitHub OAuth login flow (Hono)
