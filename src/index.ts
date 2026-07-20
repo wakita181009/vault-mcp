@@ -4,8 +4,9 @@ import { McpAgent } from "agents/mcp";
 import { z } from "zod";
 import { GitHubHandler } from "./auth/github-handler";
 import type { Props } from "./auth/utils";
-import { isLoginAllowed, listNotesHandler, readNoteHandler, searchNotesHandler } from "./tools";
-import { parseList, VaultClient, vaultConfigFromEnv } from "./vault";
+import { createGuardedApiHandler } from "./guard";
+import { listNotesHandler, readNoteHandler, searchNotesHandler } from "./tools";
+import { VaultClient, vaultConfigFromEnv } from "./vault";
 import { version } from "../package.json";
 
 const DEFAULT_SEARCH_LIMIT = 10;
@@ -61,22 +62,8 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 
 const vaultMcpHandler = VaultMCP.serve("/mcp");
 
-// OAuthProvider sets `ctx.props` before this runs, so gate the login allowlist
-// here — before the `VaultMCP` Durable Object is even created.
-const guardedApiHandler = {
-	fetch: (req: Request, env: Env, ctx: ExecutionContext) => {
-		const login = (ctx as ExecutionContext & { props?: Props }).props?.login;
-		// Only the allowlist is needed here; the rest of the env is validated a
-		// step later when the Durable Object runs init() (see vaultConfigFromEnv).
-		if (!isLoginAllowed(login, parseList(env.VAULT_ALLOWED_GITHUB_LOGINS))) {
-			return Promise.resolve(new Response("Forbidden", { status: 403 }));
-		}
-		return vaultMcpHandler.fetch(req, env, ctx);
-	},
-} satisfies ExportedHandler<Env>;
-
 export default new OAuthProvider({
-	apiHandler: guardedApiHandler,
+	apiHandler: createGuardedApiHandler(vaultMcpHandler),
 	apiRoute: "/mcp",
 	authorizeEndpoint: "/authorize",
 	clientRegistrationEndpoint: "/register",
