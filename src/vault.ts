@@ -118,7 +118,6 @@ export class VaultClient {
 		return { notes, truncated };
 	}
 
-	/** Read a single note's raw markdown by repo-relative path. */
 	async readNote(path: string): Promise<{ path: string; content: string }> {
 		const normalized = normalizePath(path);
 		if (normalized === null) {

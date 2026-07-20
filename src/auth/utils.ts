@@ -1,4 +1,3 @@
-/** Builds the upstream OAuth authorize URL with the standard query params. */
 export function getUpstreamAuthorizeUrl({
 	upstream_url,
 	client_id,

@@ -190,9 +190,6 @@ export async function addApprovedClient(
 	return `${APPROVED_CLIENTS_COOKIE}=${cookieValue}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${THIRTY_DAYS_IN_SECONDS}`;
 }
 
-// --- Helper Functions ---
-
-/** Reads a single cookie value from the request's Cookie header, or null if absent. */
 function getCookie(request: Request, name: string): string | null {
 	const cookieHeader = request.headers.get("Cookie");
 	if (!cookieHeader) return null;
