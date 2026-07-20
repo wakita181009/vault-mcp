@@ -6,6 +6,7 @@ import { GitHubHandler } from "./auth/github-handler";
 import type { Props } from "./auth/utils";
 import { parseEnv } from "./config";
 import { parseList, VaultClient, VaultError, vaultConfigFromEnv } from "./vault";
+import { version } from "../package.json";
 
 const DEFAULT_SEARCH_LIMIT = 10;
 const MAX_SEARCH_LIMIT = 30;
@@ -13,7 +14,7 @@ const MAX_SEARCH_LIMIT = 30;
 export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 	server = new McpServer({
 		name: "Vault MCP",
-		version: "0.0.1",
+		version,
 	});
 
 	async init() {
