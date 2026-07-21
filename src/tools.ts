@@ -7,6 +7,9 @@ export type VaultReader = Pick<VaultClient, "listNotes" | "readNote" | "searchNo
 /** The write subset of VaultClient the write tool handler depends on. */
 export type VaultWriter = Pick<VaultClient, "writeNote">;
 
+/** The delete subset of VaultClient the delete tool handler depends on. */
+export type VaultDeleter = Pick<VaultClient, "deleteNote">;
+
 /** MCP tool result: text content, optionally flagged as an error. */
 export type ToolResult = {
 	content: { type: "text"; text: string }[];
@@ -51,6 +54,15 @@ export async function writeNoteHandler(
 	try {
 		const { path: written, created } = await client.writeNote(path, content);
 		return textResult(`${created ? "Created" : "Updated"} ${written}`);
+	} catch (error) {
+		return errorResult(error);
+	}
+}
+
+export async function deleteNoteHandler(client: VaultDeleter, path: string): Promise<ToolResult> {
+	try {
+		const { path: deleted } = await client.deleteNote(path);
+		return textResult(`Deleted ${deleted}`);
 	} catch (error) {
 		return errorResult(error);
 	}

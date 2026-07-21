@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+	deleteNoteHandler,
 	errorResult,
 	isLoginAllowed,
 	listNotesHandler,
 	readNoteHandler,
 	searchNotesHandler,
 	textResult,
+	type VaultDeleter,
 	type VaultReader,
 	type VaultWriter,
 	writeNoteHandler,
@@ -132,6 +134,28 @@ describe("writeNoteHandler", () => {
 		const result = await writeNoteHandler(client, ".obsidian/x.md", "body");
 		expect(result.isError).toBe(true);
 		expect(result.content[0].text).toBe("not accessible");
+	});
+});
+
+describe("deleteNoteHandler", () => {
+	it("reports a delete", async () => {
+		const client: VaultDeleter = {
+			deleteNote: async (path: string) => ({ path }),
+		};
+		const result = await deleteNoteHandler(client, "a.md");
+		expect(result.content[0].text).toBe("Deleted a.md");
+		expect(result.isError).toBeUndefined();
+	});
+
+	it("returns an error result when the client throws", async () => {
+		const client: VaultDeleter = {
+			deleteNote: async () => {
+				throw new VaultError("Note not found: ghost.md");
+			},
+		};
+		const result = await deleteNoteHandler(client, "ghost.md");
+		expect(result.isError).toBe(true);
+		expect(result.content[0].text).toBe("Note not found: ghost.md");
 	});
 });
 

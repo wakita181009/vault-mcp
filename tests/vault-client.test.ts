@@ -7,8 +7,9 @@ const gh = vi.hoisted(() => {
 	const getTree = vi.fn();
 	const code = vi.fn();
 	const createOrUpdateFileContents = vi.fn();
+	const deleteFile = vi.fn();
 	const rest = {
-		repos: { getContent, createOrUpdateFileContents },
+		repos: { getContent, createOrUpdateFileContents, deleteFile },
 		git: { getBlob, getTree },
 		search: { code },
 	};
@@ -18,6 +19,7 @@ const gh = vi.hoisted(() => {
 		getTree,
 		code,
 		createOrUpdateFileContents,
+		deleteFile,
 		Octokit: vi.fn(function Octokit() {
 			return { rest };
 		}),
@@ -170,6 +172,45 @@ describe("writeNote", () => {
 	it("rejects a path hidden by policy", async () => {
 		await expect(client.writeNote(".obsidian/secret.md", "x")).rejects.toBeInstanceOf(VaultError);
 		expect(gh.createOrUpdateFileContents).not.toHaveBeenCalled();
+	});
+});
+
+describe("deleteNote", () => {
+	const notFound = () => Object.assign(new Error("Not Found"), { status: 404 });
+
+	it("deletes an existing note, passing its current sha", async () => {
+		gh.getContent.mockResolvedValue({ data: { type: "file", sha: "old-sha" } });
+		gh.deleteFile.mockResolvedValue({ data: {} });
+
+		const result = await client.deleteNote("notes/a.md");
+
+		expect(result).toEqual({ path: "notes/a.md" });
+		const call = gh.deleteFile.mock.calls[0][0];
+		expect(call.path).toBe("notes/a.md");
+		expect(call.sha).toBe("old-sha");
+		expect(call.branch).toBe("main");
+		expect(call.message).toContain("Delete");
+	});
+
+	it("throws when the note does not exist", async () => {
+		gh.getContent.mockRejectedValue(notFound());
+		await expect(client.deleteNote("notes/ghost.md")).rejects.toThrow(/Note not found/);
+		expect(gh.deleteFile).not.toHaveBeenCalled();
+	});
+
+	it("rejects an invalid path before hitting the API", async () => {
+		await expect(client.deleteNote("../escape.md")).rejects.toBeInstanceOf(VaultError);
+		expect(gh.deleteFile).not.toHaveBeenCalled();
+	});
+
+	it("rejects a non-note path", async () => {
+		await expect(client.deleteNote("notes/a.txt")).rejects.toThrow(/Not a note/);
+		expect(gh.deleteFile).not.toHaveBeenCalled();
+	});
+
+	it("rejects a path hidden by policy", async () => {
+		await expect(client.deleteNote(".obsidian/secret.md")).rejects.toBeInstanceOf(VaultError);
+		expect(gh.deleteFile).not.toHaveBeenCalled();
 	});
 });
 
