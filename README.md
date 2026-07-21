@@ -64,8 +64,8 @@ cd vault-mcp
 ```
 
 That clones the project and installs dependencies — but not the one-time setup:
-you still create the KV namespace, GitHub OAuth app, and read-only PAT, and set
-the secrets. Continue with [Setup](#setup) from **step 2** (step 1 is done for
+you still create the KV namespace, GitHub OAuth app, and fine-grained PAT
+(Contents: Read and write), and set the secrets. Continue with [Setup](#setup) from **step 2** (step 1 is done for
 you). Cloning the repo directly works too; then start from step 0.
 
 ## Setup

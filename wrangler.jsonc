@@ -15,7 +15,7 @@
    *   pnpm exec wrangler secret put GITHUB_CLIENT_ID      # OAuth app (who may log in)
    *   pnpm exec wrangler secret put GITHUB_CLIENT_SECRET  # OAuth app
    *   pnpm exec wrangler secret put COOKIE_ENCRYPTION_KEY # `openssl rand -hex 32`
-   *   pnpm exec wrangler secret put VAULT_GITHUB_TOKEN    # read-only fine-grained PAT for reading the vault
+   *   pnpm exec wrangler secret put VAULT_GITHUB_TOKEN    # fine-grained PAT, Contents R/W on the vault repo
    *   pnpm exec wrangler secret put VAULT_OWNER           # GitHub owner of the vault repo
    *   pnpm exec wrangler secret put VAULT_REPO            # vault repo name
    *   pnpm exec wrangler secret put VAULT_ALLOWED_GITHUB_LOGINS # comma-separated allowed logins
