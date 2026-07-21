@@ -1,6 +1,6 @@
 {
 	"name": "vault-mcp",
-	"version": "0.0.1",
+	"version": "0.1.0",
 	"description": "Authenticated remote MCP server on Cloudflare Workers that exposes a private GitHub-hosted Obsidian vault (read and create/overwrite notes, never deletes) to claude.ai and Claude Code.",
 	"license": "MIT",
 	"packageManager": "pnpm@11.14.0",
