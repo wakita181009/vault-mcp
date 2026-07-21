@@ -1,5 +1,6 @@
 # vault-mcp
 
+[![Release](https://img.shields.io/github/v/release/wakita181009/vault-mcp)](https://github.com/wakita181009/vault-mcp/releases/latest)
 [![codecov](https://codecov.io/gh/wakita181009/vault-mcp/branch/main/graph/badge.svg)](https://codecov.io/gh/wakita181009/vault-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
