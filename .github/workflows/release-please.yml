@@ -1,0 +1,23 @@
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+# GITHUB_TOKEN needs write to open the release PR, push the release commit, and cut the release + tag.
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: release-please-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
