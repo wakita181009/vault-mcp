@@ -5,7 +5,13 @@ import { z } from "zod";
 import { GitHubHandler } from "./auth/github-handler";
 import type { Props } from "./auth/utils";
 import { createGuardedApiHandler } from "./guard";
-import { listNotesHandler, readNoteHandler, searchNotesHandler, writeNoteHandler } from "./tools";
+import {
+	deleteNoteHandler,
+	listNotesHandler,
+	readNoteHandler,
+	searchNotesHandler,
+	writeNoteHandler,
+} from "./tools";
 import { VaultClient, vaultConfigFromEnv } from "./vault";
 import { version } from "../package.json";
 
@@ -54,6 +60,17 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 					.describe("Full markdown content to write. Overwrites the note if it already exists."),
 			},
 			({ path, content }) => writeNoteHandler(client, path, content),
+		);
+
+		this.server.tool(
+			"delete_note",
+			"Delete an existing note by its repo-relative path. Markdown files only. Recorded as a git commit (revertable); never touches non-note files.",
+			{
+				path: z
+					.string()
+					.describe("Repo-relative path to the note to delete, e.g. 'user_profile/identity.md'."),
+			},
+			({ path }) => deleteNoteHandler(client, path),
 		);
 
 		this.server.tool(

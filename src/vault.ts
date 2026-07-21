@@ -6,8 +6,10 @@ import { parseEnv } from "./config";
  *
  * The vault is a private GitHub repo; Obsidian Git keeps it up to date, so the
  * GitHub API always sees the latest committed state. Reads dominate; the only
- * mutation is `writeNote` (create/overwrite a single note), which is gated by
- * the same path-visibility policy as reads. There is deliberately no delete.
+ * mutations are `writeNote` (create/overwrite a single note) and `deleteNote`
+ * (remove one), both gated by the same path-visibility policy as reads. There
+ * is deliberately no rename/move — the GitHub API has no atomic move and it
+ * would silently break Obsidian's wikilinks, which are not rewritten here.
  */
 
 export type VaultConfig = {
@@ -190,6 +192,42 @@ export class VaultClient {
 		});
 
 		return { path: normalized, created: sha === undefined };
+	}
+
+	/**
+	 * Delete an existing note. Enforces the same path guards as writes
+	 * (traversal/absolute rejection, note-extension check, allow/deny policy), so
+	 * a delete can never reach `.git/`, `.obsidian/`, agent dirs, or any non-note
+	 * file. The removal is a git commit and stays recoverable via `git revert`.
+	 */
+	async deleteNote(path: string): Promise<{ path: string }> {
+		const normalized = normalizePath(path);
+		if (normalized === null) {
+			throw new VaultError(`Invalid path: ${path}`);
+		}
+		if (!isNote(normalized)) {
+			throw new VaultError(`Not a note (.md/.markdown): ${normalized}`);
+		}
+		if (!isPathVisible(normalized, this.config)) {
+			throw new VaultError(`Path is not accessible: ${normalized}`);
+		}
+
+		// deleteFile needs the current blob sha; its absence means the note does
+		// not exist — report that rather than letting a raw 404 surface.
+		const sha = await this.existingFileSha(normalized);
+		if (sha === undefined) {
+			throw new VaultError(`Note not found: ${normalized}`);
+		}
+		await this.octokit.rest.repos.deleteFile({
+			owner: this.config.owner,
+			repo: this.config.repo,
+			path: normalized,
+			message: `Delete ${normalized} via vault-mcp`,
+			sha,
+			branch: this.config.branch,
+		});
+
+		return { path: normalized };
 	}
 
 	private async existingFileSha(path: string): Promise<string | undefined> {

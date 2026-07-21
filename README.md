@@ -6,8 +6,8 @@
 
 Authenticated **remote MCP server** on Cloudflare Workers that exposes a private, GitHub-hosted
 Obsidian vault to both **claude.ai** (Web / Desktop / iPhone) and **Claude Code** — one free
-deployment serving every Claude surface. It reads notes and can create/overwrite them; it never
-deletes.
+deployment serving every Claude surface. It reads notes, creates/overwrites them, and deletes
+them; it never renames or moves. Every mutation is a git commit, so deletes stay revertable.
 
 It works against the vault through the GitHub API, so the source repo can stay private and there is
 no always-on machine to maintain. Deploy your own instance with C3 (one command) or clone it
@@ -28,7 +28,8 @@ ships generic.
 | --- | --- |
 | `list_notes` | List note (`.md`) paths, optionally scoped to a subdirectory. |
 | `read_note` | Read the raw markdown of one note by repo-relative path. |
-| `write_note` | Create a new note or overwrite an existing one (markdown paths only; never deletes). |
+| `write_note` | Create a new note or overwrite an existing one (markdown paths only). |
+| `delete_note` | Delete an existing note by path (markdown paths only; recorded as a revertable git commit). |
 | `search_notes` | Content search (GitHub code search, indexed) + filename search, merged. |
 
 ## Two GitHub tokens, two jobs
@@ -50,10 +51,11 @@ either per deploy with a secret of the same name (`wrangler secret put`):
 - `VAULT_ALLOWED_PREFIXES` — if non-empty, only paths under these prefixes are exposed (default: empty = whole repo).
 - `VAULT_DENIED_PREFIXES` — always hidden (default: `.git/,.obsidian/,.claude/`).
 
-`read_note` and `write_note` both reject absolute paths and `..` traversal, and `write_note`
-only accepts markdown paths — the deny/allow policy applies equally to reads and writes, so a
-write can never escape into `.git/`, `.obsidian/`, or agent dirs. To hide (and block writes to)
-additional folders, override `VAULT_DENIED_PREFIXES` with your extra prefixes.
+`read_note`, `write_note`, and `delete_note` all reject absolute paths and `..` traversal, and
+`write_note`/`delete_note` only accept markdown paths — the deny/allow policy applies equally to
+reads, writes, and deletes, so a mutation can never escape into `.git/`, `.obsidian/`, or agent
+dirs. To hide (and block writes/deletes to) additional folders, override `VAULT_DENIED_PREFIXES`
+with your extra prefixes.
 
 ## Quick start (C3)
 
@@ -173,9 +175,9 @@ After changing `wrangler.jsonc` bindings/vars, rerun `pnpm cf-typegen`.
 ```
 src/
 ├── index.ts                   # OAuthProvider + VaultMCP (McpAgent) wiring; registers the tools
-├── tools.ts                   # MCP tool handlers (list/read/write/search) + result & allowlist helpers
+├── tools.ts                   # MCP tool handlers (list/read/write/delete/search) + result & allowlist helpers
 ├── guard.ts                   # login-allowlist gate wrapping the MCP API handler
-├── vault.ts                   # GitHub API access layer: list/read/write/search + path-visibility policy
+├── vault.ts                   # GitHub API access layer: list/read/write/delete/search + path-visibility policy
 ├── config.ts                  # env schema + defaults; parseEnv validates at startup
 ├── env.d.ts                   # secret bindings type augmentation
 └── auth/
