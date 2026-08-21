@@ -1,13 +1,16 @@
 {
 	"name": "vault-mcp",
 	"version": "0.2.0",
+	"type": "module",
 	"description": "Authenticated remote MCP server on Cloudflare Workers that exposes a private GitHub-hosted Obsidian vault (read and create/overwrite notes, never deletes) to claude.ai and Claude Code.",
 	"license": "MIT",
 	"packageManager": "pnpm@11.14.0",
 	"scripts": {
-		"deploy": "wrangler deploy",
-		"dev": "wrangler dev",
-		"start": "wrangler dev",
+		"build": "vite build",
+		"deploy": "vite build && wrangler deploy",
+		"dev": "vite dev",
+		"start": "vite dev",
+		"preview": "vite build && vite preview",
 		"cf-typegen": "wrangler types --strict-vars false",
 		"lint": "biome lint ./src",
 		"lint:fix": "biome lint --write ./src",
@@ -27,10 +30,13 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.8",
+		"@cloudflare/vite-plugin": "^1.53.1",
 		"@vitest/coverage-v8": "4.1.10",
 		"husky": "^9.1.7",
 		"typescript": "7.0.2",
+		"vite": "^8.2.2",
 		"vitest": "^4.1.10",
-		"wrangler": "^4.112.0"
+		"wrangler": "^4.125.0",
+		"zod-aot": "^0.21.1"
 	}
 }

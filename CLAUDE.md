@@ -34,6 +34,11 @@ so `wrangler.jsonc` ships generic (no `vars`).
 - Secrets: `.dev.vars` locally, `wrangler secret put` in production. Their types live in
   `src/env.d.ts` (they are not emitted by `wrangler types`).
 - After editing `wrangler.jsonc`, run `pnpm cf-typegen`, then verify with `pnpm typecheck`
-  and `pnpm exec wrangler deploy --dry-run`.
+  and `pnpm build && pnpm exec wrangler deploy --dry-run` (the build refreshes the
+  `.wrangler/deploy/config.json` redirect that points wrangler at `dist/vault_mcp/`).
+- The Worker builds with Vite (`@cloudflare/vite-plugin`), not wrangler's bundler.
+  MCP tool input schemas live in `src/schemas.ts` and are compiled by `zod-aot`
+  (autoDiscover scoped to that file). Keep `src/schemas.ts` importing only `zod` and
+  side-effect free — the plugin executes it at build time.
 
 See `README.md` for the full setup and deploy runbook.

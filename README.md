@@ -164,17 +164,35 @@ pnpm typecheck     # verify generated Worker types, then run tsc --noEmit
 pnpm lint          # biome lint ./src
 pnpm test          # vitest run
 pnpm cf-typegen    # regenerate worker-configuration.d.ts after editing wrangler.jsonc
-pnpm dev           # local Worker at :8788
+pnpm dev           # local Worker at :8788 (vite dev + @cloudflare/vite-plugin)
+pnpm build         # vite build → dist/vault_mcp (bundle + generated wrangler.json)
 ```
 
 Secrets are typed in `src/env.d.ts` (they are not part of the `wrangler types` output).
 After changing `wrangler.jsonc` bindings/vars, rerun `pnpm cf-typegen`.
+
+### Build pipeline
+
+The Worker is built with Vite via [`@cloudflare/vite-plugin`](https://developers.cloudflare.com/workers/vite-plugin/).
+`vite build` writes the bundle and a generated `wrangler.json` to `dist/vault_mcp/`,
+plus a `.wrangler/deploy/config.json` redirect so a plain `wrangler deploy` (and
+`wrangler deploy --dry-run`) picks up the built output. `pnpm deploy` chains both steps.
+
+MCP tool input schemas live in `src/schemas.ts` (plain Zod, no other imports) and are
+compiled at build time by [`zod-aot`](https://github.com/wakita181009/zod-aot)
+(`autoDiscover` scoped to that file — it executes matched files during the build, so the
+schema module must stay side-effect free). Inspect compilation coverage with:
+
+```bash
+pnpm exec zod-aot check src/schemas.ts --auto-discover
+```
 
 ## Layout
 
 ```
 src/
 ├── index.ts                   # OAuthProvider + VaultMCP (McpAgent) wiring; registers the tools
+├── schemas.ts                 # MCP tool input schemas (compiled at build time by zod-aot)
 ├── tools.ts                   # MCP tool handlers (list/read/write/delete/search) + result & allowlist helpers
 ├── guard.ts                   # login-allowlist gate wrapping the MCP API handler
 ├── vault.ts                   # GitHub API access layer: list/read/write/delete/search + path-visibility policy
