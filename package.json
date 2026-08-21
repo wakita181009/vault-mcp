@@ -19,7 +19,7 @@
 	},
 	"dependencies": {
 		"@cloudflare/workers-oauth-provider": "^0.10.3",
-		"@modelcontextprotocol/sdk": "^1.29.0",
+		"@modelcontextprotocol/sdk": "^1.30.0",
 		"agents": "^0.17.4",
 		"hono": "^4.13.2",
 		"octokit": "^5.0.5",
