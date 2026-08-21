@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/wakita181009/vault-mcp/compare/v0.1.0...v0.2.0) (2026-08-21)
+
+
+### Features
+
+* add delete_note tool ([#4](https://github.com/wakita181009/vault-mcp/issues/4)) ([403a76b](https://github.com/wakita181009/vault-mcp/commit/403a76b214d86ddab470edd4d4685e5945226a3c))
+
 ## [0.1.0](https://github.com/wakita181009/vault-mcp/compare/v0.0.1...v0.1.0) (2026-07-21)
 
 
