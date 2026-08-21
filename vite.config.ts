@@ -6,7 +6,9 @@ export default defineConfig({
 	plugins: [
 		// autoDiscover executes matched files at build time, so keep the scope to
 		// src/schemas.ts — it imports nothing but zod and has no side effects.
-		zodAot({ autoDiscover: true, include: ["src/schemas"], verbose: true }),
+		// The extension matters: include matching is substring-based, so a bare
+		// "src/schemas" would also pull in a future src/schemas-*.ts.
+		zodAot({ autoDiscover: true, include: ["src/schemas.ts"], verbose: true }),
 		cloudflare(),
 	],
 	server: {
