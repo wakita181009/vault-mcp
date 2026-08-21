@@ -1,10 +1,16 @@
 import OAuthProvider, { type OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpAgent } from "agents/mcp";
-import { z } from "zod";
 import { GitHubHandler } from "./auth/github-handler";
 import type { Props } from "./auth/utils";
 import { createGuardedApiHandler } from "./guard";
+import {
+	deleteNoteInput,
+	listNotesInput,
+	readNoteInput,
+	searchNotesInput,
+	writeNoteInput,
+} from "./schemas";
 import {
 	deleteNoteHandler,
 	listNotesHandler,
@@ -14,9 +20,6 @@ import {
 } from "./tools";
 import { VaultClient, vaultConfigFromEnv } from "./vault";
 import { version } from "../package.json";
-
-const DEFAULT_SEARCH_LIMIT = 10;
-const MAX_SEARCH_LIMIT = 30;
 
 export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 	server = new McpServer({
@@ -30,62 +33,35 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 		this.server.tool(
 			"list_notes",
 			"List note (markdown) paths in the vault. Optionally scope to a subdirectory.",
-			{
-				dir: z
-					.string()
-					.optional()
-					.describe("Optional repo-relative directory to scope the listing to, e.g. 'user_profile'."),
-			},
+			listNotesInput.shape,
 			({ dir }) => listNotesHandler(client, dir),
 		);
 
 		this.server.tool(
 			"read_note",
 			"Read the raw markdown of a single note by its repo-relative path.",
-			{
-				path: z.string().describe("Repo-relative path to the note, e.g. 'user_profile/identity.md'."),
-			},
+			readNoteInput.shape,
 			({ path }) => readNoteHandler(client, path),
 		);
 
 		this.server.tool(
 			"write_note",
 			"Create a new note or overwrite an existing one at a repo-relative path. Markdown files only.",
-			{
-				path: z
-					.string()
-					.describe("Repo-relative path to the note, e.g. 'user_profile/identity.md'."),
-				content: z
-					.string()
-					.describe("Full markdown content to write. Overwrites the note if it already exists."),
-			},
+			writeNoteInput.shape,
 			({ path, content }) => writeNoteHandler(client, path, content),
 		);
 
 		this.server.tool(
 			"delete_note",
 			"Delete an existing note by its repo-relative path. Markdown files only. Recorded as a git commit (revertable); never touches non-note files.",
-			{
-				path: z
-					.string()
-					.describe("Repo-relative path to the note to delete, e.g. 'user_profile/identity.md'."),
-			},
+			deleteNoteInput.shape,
 			({ path }) => deleteNoteHandler(client, path),
 		);
 
 		this.server.tool(
 			"search_notes",
 			"Search notes by content (indexed) and filename. Returns matching paths with snippets.",
-			{
-				query: z.string().describe("Text to search for across note contents and filenames."),
-				limit: z
-					.number()
-					.int()
-					.min(1)
-					.max(MAX_SEARCH_LIMIT)
-					.default(DEFAULT_SEARCH_LIMIT)
-					.describe("Maximum number of notes to return."),
-			},
+			searchNotesInput.shape,
 			({ query, limit }) => searchNotesHandler(client, query, limit),
 		);
 	}
