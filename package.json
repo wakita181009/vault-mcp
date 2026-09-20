@@ -23,7 +23,7 @@
 		"agents": "^0.17.4",
 		"hono": "^4.13.3",
 		"octokit": "^5.0.5",
-		"zod": "^4.4.3"
+		"zod": "^4.6.5"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.9",
