@@ -1,22 +1,21 @@
-import { Octokit } from "octokit";
 import { parseEnv } from "./config";
+import { GitHubStorage } from "./storage/github";
+import { type ContentMatch, VaultError, type VaultStorage } from "./storage/types";
+
+export { VaultError } from "./storage/types";
 
 /**
- * Access layer over the GitHub-hosted Obsidian vault.
+ * Policy layer over a `VaultStorage` backend (see `storage/`).
  *
- * The vault is a private GitHub repo; Obsidian Git keeps it up to date, so the
- * GitHub API always sees the latest committed state. Reads dominate; the only
- * mutations are `writeNote` (create/overwrite a single note) and `deleteNote`
- * (remove one), both gated by the same path-visibility policy as reads. There
- * is deliberately no rename/move — the GitHub API has no atomic move and it
- * would silently break Obsidian's wikilinks, which are not rewritten here.
+ * Reads dominate; the only mutations are `writeNote` (create/overwrite a single
+ * note) and `deleteNote` (remove one), both gated by the same path-visibility
+ * policy as reads. There is deliberately no rename/move — not every backend has
+ * an atomic move and it would silently break Obsidian's wikilinks, which are
+ * not rewritten here. Every guard lives here, not in the backends, so adding a
+ * backend cannot weaken the policy.
  */
 
 export type VaultConfig = {
-	owner: string;
-	repo: string;
-	branch: string;
-	token: string;
 	/** If non-empty, only paths under one of these prefixes are visible. */
 	allowedPrefixes: string[];
 	/** Paths under any of these prefixes are always hidden (takes precedence). */
@@ -28,25 +27,23 @@ export type NoteEntry = {
 	size: number;
 };
 
-export type SearchHit = {
-	path: string;
-	/** Matched fragments (content matches). Empty when the hit is filename-only. */
-	fragments: string[];
-};
+export type SearchHit = ContentMatch;
 
 const NOTE_EXTENSIONS = [".md", ".markdown"];
 
-/** Validate the Worker env (fail fast on misconfig) and build the vault-read config. */
-export function vaultConfigFromEnv(env: Env): VaultConfig {
+/** Validate the Worker env (fail fast on misconfig) and wire the configured backend. */
+export function vaultClientFromEnv(env: Env): VaultClient {
 	const config = parseEnv(env);
-	return {
+	const storage = new GitHubStorage({
 		owner: config.VAULT_OWNER,
 		repo: config.VAULT_REPO,
 		branch: config.VAULT_BRANCH,
 		token: config.VAULT_GITHUB_TOKEN,
+	});
+	return new VaultClient(storage, {
 		allowedPrefixes: parseList(config.VAULT_ALLOWED_PREFIXES),
 		deniedPrefixes: parseList(config.VAULT_DENIED_PREFIXES),
-	};
+	});
 }
 
 export function parseList(raw: string | undefined): string[] {
@@ -57,7 +54,7 @@ export function parseList(raw: string | undefined): string[] {
 		.filter((s) => s.length > 0);
 }
 
-/** Whether a repo path may be exposed given the allow/deny policy. */
+/** Whether a vault path may be exposed given the allow/deny policy. */
 export function isPathVisible(path: string, config: VaultConfig): boolean {
 	const p = normalizePath(path);
 	if (p === null) return false;
@@ -68,7 +65,7 @@ export function isPathVisible(path: string, config: VaultConfig): boolean {
 
 /**
  * Validate & normalize an incoming path. Returns null for anything that looks
- * like traversal or an absolute path — those must never reach the GitHub API.
+ * like traversal or an absolute path — those must never reach a backend.
  */
 export function normalizePath(path: string): string | null {
 	const trimmed = path.trim().replace(/^\/+/, "");
@@ -90,31 +87,21 @@ function isNote(path: string): boolean {
 	return NOTE_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
-type GitTreeEntry = { path?: string; type?: string; size?: number };
-
-/** Narrows a git tree entry to a blob (file) with a definite string path. */
-function isBlobEntry<T extends GitTreeEntry>(entry: T): entry is T & { path: string } {
-	return entry.type === "blob" && typeof entry.path === "string";
-}
-
 export class VaultClient {
-	private readonly octokit: Octokit;
-
-	constructor(private readonly config: VaultConfig) {
-		this.octokit = new Octokit({ auth: config.token });
-	}
+	constructor(
+		private readonly storage: VaultStorage,
+		private readonly config: VaultConfig,
+	) {}
 
 	/**
 	 * List notes (markdown files) under the visible portion of the vault.
 	 * `dir`, when provided, further scopes the listing to that subtree.
 	 */
 	async listNotes(dir?: string): Promise<{ notes: NoteEntry[]; truncated: boolean }> {
-		const { tree, truncated } = await this.fetchTree();
-		const dirPrefix = dir ? normalizePath(dir) : null;
+		const dirPrefix = dir ? this.guardReadable(dir) : null;
+		const { files, truncated } = await this.storage.listFiles();
 
-		const notes = tree
-			.filter(isBlobEntry)
-			.map((entry) => ({ path: entry.path, size: entry.size ?? 0 }))
+		const notes = files
 			.filter((entry) => isNote(entry.path))
 			.filter((entry) => isPathVisible(entry.path, this.config))
 			.filter((entry) => (dirPrefix ? matchesPrefix(entry.path, dirPrefix) : true))
@@ -124,39 +111,8 @@ export class VaultClient {
 	}
 
 	async readNote(path: string): Promise<{ path: string; content: string }> {
-		const normalized = normalizePath(path);
-		if (normalized === null) {
-			throw new VaultError(`Invalid path: ${path}`);
-		}
-		if (!isPathVisible(normalized, this.config)) {
-			throw new VaultError(`Path is not accessible: ${normalized}`);
-		}
-
-		const res = await this.octokit.rest.repos.getContent({
-			owner: this.config.owner,
-			repo: this.config.repo,
-			path: normalized,
-			ref: this.config.branch,
-		});
-
-		const data = res.data;
-		if (Array.isArray(data) || data.type !== "file") {
-			throw new VaultError(`Not a file: ${normalized}`);
-		}
-
-		let content: string;
-		if (data.encoding === "base64" && data.content) {
-			content = decodeBase64Utf8(data.content);
-		} else {
-			// Files > 1MB come back with empty content; fall back to the blob API.
-			const blob = await this.octokit.rest.git.getBlob({
-				owner: this.config.owner,
-				repo: this.config.repo,
-				file_sha: data.sha,
-			});
-			content = decodeBase64Utf8(blob.data.content);
-		}
-
+		const normalized = this.guardReadable(path);
+		const content = await this.storage.readFile(normalized);
 		return { path: normalized, content };
 	}
 
@@ -167,179 +123,78 @@ export class VaultClient {
 	 * any non-note file. Returns whether the note was created (vs. updated).
 	 */
 	async writeNote(path: string, content: string): Promise<{ path: string; created: boolean }> {
-		const normalized = normalizePath(path);
-		if (normalized === null) {
-			throw new VaultError(`Invalid path: ${path}`);
-		}
-		if (!isNote(normalized)) {
-			throw new VaultError(`Not a note (.md/.markdown): ${normalized}`);
-		}
-		if (!isPathVisible(normalized, this.config)) {
-			throw new VaultError(`Path is not accessible: ${normalized}`);
-		}
-
-		// GitHub's contents API needs the current blob sha to overwrite; its
-		// absence means the file does not exist yet and this is a create.
-		const sha = await this.existingFileSha(normalized);
-		await this.octokit.rest.repos.createOrUpdateFileContents({
-			owner: this.config.owner,
-			repo: this.config.repo,
-			path: normalized,
-			message: `${sha ? "Update" : "Create"} ${normalized} via vault-mcp`,
-			content: encodeBase64Utf8(content),
-			branch: this.config.branch,
-			...(sha ? { sha } : {}),
-		});
-
-		return { path: normalized, created: sha === undefined };
+		const normalized = this.guardMutable(path);
+		const { created } = await this.storage.writeFile(normalized, content);
+		return { path: normalized, created };
 	}
 
 	/**
 	 * Delete an existing note. Enforces the same path guards as writes
 	 * (traversal/absolute rejection, note-extension check, allow/deny policy), so
 	 * a delete can never reach `.git/`, `.obsidian/`, agent dirs, or any non-note
-	 * file. The removal is a git commit and stays recoverable via `git revert`.
+	 * file.
 	 */
 	async deleteNote(path: string): Promise<{ path: string }> {
-		const normalized = normalizePath(path);
-		if (normalized === null) {
-			throw new VaultError(`Invalid path: ${path}`);
-		}
-		if (!isNote(normalized)) {
-			throw new VaultError(`Not a note (.md/.markdown): ${normalized}`);
-		}
-		if (!isPathVisible(normalized, this.config)) {
-			throw new VaultError(`Path is not accessible: ${normalized}`);
-		}
-
-		// deleteFile needs the current blob sha; its absence means the note does
-		// not exist — report that rather than letting a raw 404 surface.
-		const sha = await this.existingFileSha(normalized);
-		if (sha === undefined) {
+		const normalized = this.guardMutable(path);
+		const found = await this.storage.deleteFile(normalized);
+		if (!found) {
 			throw new VaultError(`Note not found: ${normalized}`);
 		}
-		await this.octokit.rest.repos.deleteFile({
-			owner: this.config.owner,
-			repo: this.config.repo,
-			path: normalized,
-			message: `Delete ${normalized} via vault-mcp`,
-			sha,
-			branch: this.config.branch,
-		});
-
 		return { path: normalized };
 	}
 
-	private async existingFileSha(path: string): Promise<string | undefined> {
-		try {
-			const res = await this.octokit.rest.repos.getContent({
-				owner: this.config.owner,
-				repo: this.config.repo,
-				path,
-				ref: this.config.branch,
-			});
-			const data = res.data;
-			if (Array.isArray(data) || data.type !== "file") {
-				throw new VaultError(`Not a file: ${path}`);
-			}
-			return data.sha;
-		} catch (error) {
-			if (isNotFound(error)) return undefined;
-			throw error;
-		}
-	}
-
 	/**
-	 * Search notes. Combines GitHub content search (indexed, default branch) with
-	 * filename matching from the tree so results are useful even when the code
-	 * search index is cold or unavailable for the query.
+	 * Search notes. Combines the backend's content search with filename matching
+	 * from the listing so results are useful even when the backend's index is
+	 * cold, unavailable, or absent.
 	 */
 	async searchNotes(query: string, limit: number): Promise<SearchHit[]> {
 		const hits = new Map<string, SearchHit>();
 
 		const [contentHits, filenameHits] = await Promise.all([
-			this.contentSearch(query, limit).catch(() => [] as SearchHit[]),
+			this.storage.searchContent(query, limit).catch(() => [] as SearchHit[]),
 			this.filenameSearch(query),
 		]);
 
 		for (const hit of [...contentHits, ...filenameHits]) {
 			if (!isNote(hit.path) || !isPathVisible(hit.path, this.config)) continue;
 			const existing = hits.get(hit.path);
-			if (existing) {
-				existing.fragments.push(...hit.fragments);
-			} else {
-				hits.set(hit.path, { path: hit.path, fragments: [...hit.fragments] });
-			}
+			hits.set(hit.path, {
+				path: hit.path,
+				fragments: [...(existing?.fragments ?? []), ...hit.fragments],
+			});
 			if (hits.size >= limit) break;
 		}
 
 		return [...hits.values()];
 	}
 
-	private async contentSearch(query: string, limit: number): Promise<SearchHit[]> {
-		const res = await this.octokit.rest.search.code({
-			q: `${query} repo:${this.config.owner}/${this.config.repo}`,
-			per_page: Math.min(limit, 30),
-			mediaType: { format: "text-match" },
-		});
-
-		return res.data.items.map((item) => ({
-			path: item.path,
-			fragments: (item.text_matches ?? [])
-				.map((m) => m.fragment)
-				.filter((f): f is string => typeof f === "string"),
-		}));
-	}
-
 	private async filenameSearch(query: string): Promise<SearchHit[]> {
-		const { tree } = await this.fetchTree();
+		const { files } = await this.storage.listFiles();
 		const needle = query.toLowerCase();
-		return tree
-			.filter(isBlobEntry)
+		return files
 			.map((entry) => entry.path)
 			.filter((path) => path.toLowerCase().includes(needle))
 			.map((path) => ({ path, fragments: [] }));
 	}
 
-	private async fetchTree() {
-		const res = await this.octokit.rest.git.getTree({
-			owner: this.config.owner,
-			repo: this.config.repo,
-			tree_sha: this.config.branch,
-			recursive: "true",
-		});
-		return { tree: res.data.tree, truncated: res.data.truncated };
+	private guardReadable(path: string): string {
+		const normalized = normalizePath(path);
+		if (normalized === null) {
+			throw new VaultError(`Invalid path: ${path}`);
+		}
+		if (!isPathVisible(normalized, this.config)) {
+			throw new VaultError(`Path is not accessible: ${normalized}`);
+		}
+		return normalized;
 	}
-}
 
-export class VaultError extends Error {
-	constructor(message: string) {
-		super(message);
-		this.name = "VaultError";
+	/** Read guards plus the note-extension check — mutations must never touch non-note files. */
+	private guardMutable(path: string): string {
+		const normalized = this.guardReadable(path);
+		if (!isNote(normalized)) {
+			throw new VaultError(`Not a note (.md/.markdown): ${normalized}`);
+		}
+		return normalized;
 	}
-}
-
-function decodeBase64Utf8(b64: string): string {
-	const binary = atob(b64.replace(/\s/g, ""));
-	const bytes = new Uint8Array(binary.length);
-	for (let i = 0; i < binary.length; i++) {
-		bytes[i] = binary.charCodeAt(i);
-	}
-	return new TextDecoder().decode(bytes);
-}
-
-function encodeBase64Utf8(text: string): string {
-	const bytes = new TextEncoder().encode(text);
-	let binary = "";
-	for (const byte of bytes) {
-		binary += String.fromCharCode(byte);
-	}
-	return btoa(binary);
-}
-
-/** Whether an Octokit error is a 404 (file not found) rather than a real failure. */
-function isNotFound(error: unknown): boolean {
-	return (
-		typeof error === "object" && error !== null && (error as { status?: number }).status === 404
-	);
 }

@@ -72,7 +72,7 @@ describe("listNotesHandler", () => {
 			listNotes: async () => ({ notes: [], truncated: true }),
 		};
 		const result = await listNotesHandler(client);
-		expect(result.content[0].text).toContain("tree truncated by GitHub");
+		expect(result.content[0].text).toContain("listing truncated by backend");
 	});
 
 	it("returns an error result when the client throws", async () => {

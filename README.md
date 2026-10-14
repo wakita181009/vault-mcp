@@ -195,7 +195,10 @@ src/
 ├── schemas.ts                 # MCP tool input schemas (compiled at build time by zod-aot)
 ├── tools.ts                   # MCP tool handlers (list/read/write/delete/search) + result & allowlist helpers
 ├── guard.ts                   # login-allowlist gate wrapping the MCP API handler
-├── vault.ts                   # GitHub API access layer: list/read/write/delete/search + path-visibility policy
+├── vault.ts                   # Backend-agnostic policy layer: list/read/write/delete/search + path guards
+├── storage/
+│   ├── types.ts               # VaultStorage interface every backend implements (+ VaultError)
+│   └── github.ts              # GitHub API backend (Octokit)
 ├── config.ts                  # env schema + defaults; parseEnv validates at startup
 ├── env.d.ts                   # secret bindings type augmentation
 └── auth/
@@ -206,5 +209,8 @@ src/
 ```
 
 Tests live in `tests/` (Vitest), mirroring the `src/` layout.
+
+To add another data source, implement `VaultStorage` from `src/storage/types.ts` and construct it
+in `vaultClientFromEnv` (`src/vault.ts`). Backends only move bytes; path policy stays in `VaultClient`.
 
 Derived from Cloudflare's `remote-mcp-github-oauth` template.

@@ -2,10 +2,6 @@ import { describe, expect, it } from "vitest";
 import { isPathVisible, normalizePath, parseList, type VaultConfig } from "../src/vault";
 
 const baseConfig: VaultConfig = {
-	owner: "o",
-	repo: "r",
-	branch: "b",
-	token: "t",
 	allowedPrefixes: [],
 	deniedPrefixes: [],
 };

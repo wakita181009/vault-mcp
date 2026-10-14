@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { GitHubStorage } from "../src/storage/github";
 import { VaultClient, VaultError, type VaultConfig } from "../src/vault";
 
 const gh = vi.hoisted(() => {
@@ -32,11 +33,8 @@ vi.mock("octokit", () => ({ Octokit: gh.Octokit }));
 const b64 = (s: string): string =>
 	btoa(String.fromCharCode(...new TextEncoder().encode(s)));
 
+const github = { owner: "o", repo: "r", branch: "main", token: "github_pat_x" };
 const config: VaultConfig = {
-	owner: "o",
-	repo: "r",
-	branch: "main",
-	token: "github_pat_x",
 	allowedPrefixes: [],
 	deniedPrefixes: [".obsidian"],
 };
@@ -50,7 +48,7 @@ let client: VaultClient;
 
 beforeEach(() => {
 	vi.clearAllMocks();
-	client = new VaultClient(config);
+	client = new VaultClient(new GitHubStorage(github), config);
 });
 
 describe("listNotes", () => {
@@ -68,6 +66,12 @@ describe("listNotes", () => {
 		const { notes, truncated } = await client.listNotes();
 		expect(notes.map((n) => n.path)).toEqual(["a.markdown", "b.md"]);
 		expect(truncated).toBe(false);
+	});
+
+	it("rejects an invalid or hidden dir instead of listing everything", async () => {
+		await expect(client.listNotes("../")).rejects.toThrow(/Invalid path/);
+		await expect(client.listNotes(".obsidian")).rejects.toThrow(/not accessible/);
+		expect(gh.getTree).not.toHaveBeenCalled();
 	});
 
 	it("scopes to a subdirectory and reports truncation", async () => {
@@ -116,6 +120,11 @@ describe("readNote", () => {
 	it("rejects a path hidden by policy", async () => {
 		await expect(client.readNote(".obsidian/secret.md")).rejects.toBeInstanceOf(VaultError);
 		expect(gh.getContent).not.toHaveBeenCalled();
+	});
+
+	it("maps a 404 to VaultError", async () => {
+		gh.getContent.mockRejectedValue(Object.assign(new Error("Not Found"), { status: 404 }));
+		await expect(client.readNote("ghost.md")).rejects.toThrow(/Note not found/);
 	});
 
 	it("throws when the path resolves to a directory listing", async () => {

@@ -18,7 +18,7 @@ import {
 	searchNotesHandler,
 	writeNoteHandler,
 } from "./tools";
-import { VaultClient, vaultConfigFromEnv } from "./vault";
+import { vaultClientFromEnv } from "./vault";
 import { version } from "../package.json";
 
 export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
@@ -28,7 +28,7 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 	});
 
 	async init() {
-		const client = new VaultClient(vaultConfigFromEnv(this.env));
+		const client = vaultClientFromEnv(this.env);
 
 		this.server.tool(
 			"list_notes",
@@ -53,7 +53,7 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 
 		this.server.tool(
 			"delete_note",
-			"Delete an existing note by its repo-relative path. Markdown files only. Recorded as a git commit (revertable); never touches non-note files.",
+			"Delete an existing note by its vault-relative path. Markdown files only; never touches non-note files.",
 			deleteNoteInput.shape,
 			({ path }) => deleteNoteHandler(client, path),
 		);

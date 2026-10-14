@@ -30,7 +30,7 @@ export async function listNotesHandler(client: VaultReader, dir?: string): Promi
 	try {
 		const { notes, truncated } = await client.listNotes(dir);
 		const lines = notes.map((n) => n.path);
-		const header = `${notes.length} note(s)${truncated ? " (tree truncated by GitHub)" : ""}:`;
+		const header = `${notes.length} note(s)${truncated ? " (listing truncated by backend)" : ""}:`;
 		return textResult([header, ...lines].join("\n"));
 	} catch (error) {
 		return errorResult(error);

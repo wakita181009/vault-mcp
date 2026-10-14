@@ -13,6 +13,10 @@ so `wrangler.jsonc` ships generic (no `vars`).
   atomic move and it would silently break Obsidian wikilinks. Never let a mutation touch
   non-note files — `writeNote` and `deleteNote` in `vault.ts` must keep enforcing the
   `.md`/`.markdown` extension check.
+- **Policy lives in `vault.ts`, never in a backend.** Storage backends (`src/storage/`) implement
+  `VaultStorage` and only move bytes. All guards run in `VaultClient` before a path reaches a
+  backend, so a new backend cannot weaken them. Add backends by implementing the interface and
+  wiring it in `vaultClientFromEnv`.
 - **Writes and deletes obey the same path policy as reads.** `write_note` and `delete_note`
   must run every guard `read_note` does — `..`/absolute rejection and `VAULT_ALLOWED_PREFIXES` /
   `VAULT_DENIED_PREFIXES` — so a mutation can never reach `.git/`, `.obsidian/`, or agent dirs.
