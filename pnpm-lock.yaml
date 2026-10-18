@@ -13,10 +13,10 @@ importers:
         version: 0.10.3
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
-        version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.6.5)
+        version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)
       agents:
         specifier: ^0.17.4
-        version: 0.17.4(@babel/core@8.0.1)(@babel/runtime@7.29.7)(react@19.2.7)(rolldown@1.2.13)(vite@8.3.4(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(zod@4.6.5)
+        version: 0.17.4(@babel/core@8.0.1)(@babel/runtime@7.29.7)(react@19.2.7)(rolldown@1.2.13)(vite@8.3.4(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(zod@4.6.7)
       hono:
         specifier: ^4.13.12
         version: 4.13.12
@@ -24,8 +24,8 @@ importers:
         specifier: ^5.0.5
         version: 5.0.5
       zod:
-        specifier: ^4.6.5
-        version: 4.6.5
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@biomejs/biome':
         specifier: 2.5.15
@@ -53,7 +53,7 @@ importers:
         version: 4.149.0
       zod-aot:
         specifier: ^0.21.1
-        version: 0.21.2(esbuild@0.28.1)(rolldown@1.2.13)(vite@8.3.4(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(zod@4.6.5)
+        version: 0.21.2(esbuild@0.28.1)(rolldown@1.2.13)(vite@8.3.4(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(zod@4.6.7)
 
 packages:
 
@@ -2293,8 +2293,8 @@ packages:
     peerDependencies:
       zod: ^3.25.28 || ^4
 
-  zod@4.6.5:
-    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
+  zod@4.6.7:
+    resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
 
 snapshots:
 
@@ -2489,13 +2489,13 @@ snapshots:
 
   '@cfworker/json-schema@4.1.1': {}
 
-  '@cloudflare/codemode@0.4.3(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.6.5))(zod@4.6.5)':
+  '@cloudflare/codemode@0.4.3(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.6.7))(zod@4.6.7)':
     dependencies:
       '@types/json-schema': 7.0.15
       acorn: 8.17.0
     optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.6.5)
-      zod: 4.6.5
+      '@modelcontextprotocol/sdk': 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)
+      zod: 4.6.7
 
   '@cloudflare/kv-asset-handler@0.5.0': {}
 
@@ -2837,7 +2837,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  '@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.6.5)':
+  '@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)':
     dependencies:
       '@hono/node-server': 1.19.14(hono@4.13.12)
       ajv: 8.20.0
@@ -2854,8 +2854,8 @@ snapshots:
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
-      zod: 4.6.5
-      zod-to-json-schema: 3.25.2(zod@4.6.5)
+      zod: 4.6.7
+      zod-to-json-schema: 3.25.2(zod@4.6.7)
     optionalDependencies:
       '@cfworker/json-schema': 4.1.1
     transitivePeerDependencies:
@@ -3226,12 +3226,12 @@ snapshots:
 
   acorn@8.19.0: {}
 
-  agents@0.17.4(@babel/core@8.0.1)(@babel/runtime@7.29.7)(react@19.2.7)(rolldown@1.2.13)(vite@8.3.4(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(zod@4.6.5):
+  agents@0.17.4(@babel/core@8.0.1)(@babel/runtime@7.29.7)(react@19.2.7)(rolldown@1.2.13)(vite@8.3.4(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(zod@4.6.7):
     dependencies:
       '@babel/plugin-proposal-decorators': 8.0.2(@babel/core@8.0.1)
       '@cfworker/json-schema': 4.1.1
-      '@cloudflare/codemode': 0.4.3(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.6.5))(zod@4.6.5)
-      '@modelcontextprotocol/sdk': 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.6.5)
+      '@cloudflare/codemode': 0.4.3(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.6.7))(zod@4.6.7)
+      '@modelcontextprotocol/sdk': 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)
       '@rolldown/plugin-babel': 0.2.3(@babel/core@8.0.1)(@babel/runtime@7.29.7)(rolldown@1.2.13)(vite@8.3.4(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
       cron-schedule: 6.0.0
       esbuild: 0.28.1
@@ -3242,7 +3242,7 @@ snapshots:
       react: 19.2.7
       yaml: 2.9.0
       yargs: 18.0.0
-      zod: 4.6.5
+      zod: 4.6.7
     optionalDependencies:
       vite: 8.3.4(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)
     transitivePeerDependencies:
@@ -4188,14 +4188,14 @@ snapshots:
       cookie: 1.1.1
       youch-core: 0.3.3
 
-  zod-aot@0.21.2(esbuild@0.28.1)(rolldown@1.2.13)(vite@8.3.4(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(zod@4.6.5):
+  zod-aot@0.21.2(esbuild@0.28.1)(rolldown@1.2.13)(vite@8.3.4(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(zod@4.6.7):
     dependencies:
       acorn: 8.19.0
       get-tsconfig: 4.14.3
       jiti: 2.7.0
       picomatch: 4.0.7
       unplugin: 3.4.0(esbuild@0.28.1)(rolldown@1.2.13)(vite@8.3.4(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
-      zod: 4.6.5
+      zod: 4.6.7
     transitivePeerDependencies:
       - '@farmfe/core'
       - '@rsbuild/core'
@@ -4208,8 +4208,8 @@ snapshots:
       - vite
       - webpack
 
-  zod-to-json-schema@3.25.2(zod@4.6.5):
+  zod-to-json-schema@3.25.2(zod@4.6.7):
     dependencies:
-      zod: 4.6.5
+      zod: 4.6.7
 
-  zod@4.6.5: {}
+  zod@4.6.7: {}
