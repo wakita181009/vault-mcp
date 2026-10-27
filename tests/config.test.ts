@@ -97,4 +97,48 @@ describe("parseEnv AUTH_PROVIDER", () => {
 	it("rejects an unknown provider", () => {
 		expect(() => parse({ AUTH_PROVIDER: "okta" })).toThrow(/AUTH_PROVIDER/);
 	});
+
+	const OIDC = {
+		AUTH_PROVIDER: "oidc",
+		OIDC_ISSUER_URL: "https://login.example/tenant/v2.0",
+		OIDC_CLIENT_ID: "ocid",
+		OIDC_CLIENT_SECRET: "osecret",
+		COOKIE_ENCRYPTION_KEY: "0".repeat(64),
+		VAULT_GITHUB_TOKEN: "github_pat_example",
+		VAULT_OWNER: "owner",
+		VAULT_REPO: "repo",
+		VAULT_ALLOWED_OIDC_EMAILS: "owner@example.com",
+	};
+	const parseOidc = (overrides: Record<string, unknown> = {}) =>
+		parseEnv({ ...OIDC, ...overrides } as unknown as Parameters<typeof parseEnv>[0]);
+
+	it("accepts an oidc deploy with only the OIDC keys", () => {
+		const config = parseOidc();
+		expect(config.AUTH_PROVIDER).toBe("oidc");
+		expect(config.VAULT_BRANCH).toBe("main");
+	});
+
+	it("requires an https issuer URL", () => {
+		expect(() => parseOidc({ OIDC_ISSUER_URL: "http://login.example" })).toThrow(
+			/OIDC_ISSUER_URL/,
+		);
+		expect(() => parseOidc({ OIDC_ISSUER_URL: "not a url" })).toThrow(/OIDC_ISSUER_URL/);
+		expect(() => parseOidc({ OIDC_ISSUER_URL: "https://login.example/?x=1" })).toThrow(
+			/query string/,
+		);
+	});
+
+	it("requires the OIDC client keys and allowlist", () => {
+		expect(() => parseOidc({ OIDC_CLIENT_SECRET: undefined })).toThrow(/OIDC_CLIENT_SECRET/);
+		expect(() => parseOidc({ VAULT_ALLOWED_OIDC_EMAILS: undefined })).toThrow(
+			/VAULT_ALLOWED_OIDC_EMAILS/,
+		);
+	});
+
+	it("only accepts true/false for the unverified-email opt-in", () => {
+		expect(parseOidc({ OIDC_ALLOW_UNVERIFIED_EMAIL: "true" }).AUTH_PROVIDER).toBe("oidc");
+		expect(() => parseOidc({ OIDC_ALLOW_UNVERIFIED_EMAIL: "yes" })).toThrow(
+			/OIDC_ALLOW_UNVERIFIED_EMAIL/,
+		);
+	});
 });

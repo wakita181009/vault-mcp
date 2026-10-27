@@ -1,6 +1,7 @@
 import type { AuthProviderName } from "../../config";
 import { githubProvider } from "./github";
 import { googleProvider } from "./google";
+import { oidcProvider } from "./oidc";
 import type { UpstreamProvider } from "./types";
 
 export type { UpstreamIdentity, UpstreamProvider } from "./types";
@@ -9,6 +10,7 @@ export { UpstreamIdentityError } from "./types";
 const PROVIDERS: Record<AuthProviderName, UpstreamProvider> = {
 	github: githubProvider,
 	google: googleProvider,
+	oidc: oidcProvider,
 };
 
 const DEFAULT_PROVIDER: AuthProviderName = "github";

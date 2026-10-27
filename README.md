@@ -17,8 +17,9 @@ ships generic.
 ## What it does
 
 - **Auth:** OAuth via [`@cloudflare/workers-oauth-provider`](https://github.com/cloudflare/workers-oauth-provider),
-  delegating sign-in to **GitHub** (default) or **Google** (`AUTH_PROVIDER=google`). Only identities on
-  the provider's allowlist (`VAULT_ALLOWED_GITHUB_LOGINS` / `VAULT_ALLOWED_GOOGLE_EMAILS`) get any tools at all.
+  delegating sign-in to **GitHub** (default), **Google** (`AUTH_PROVIDER=google`), or any **OpenID
+  Connect** IdP (`AUTH_PROVIDER=oidc`). Only identities on the provider's allowlist
+  (`VAULT_ALLOWED_GITHUB_LOGINS` / `VAULT_ALLOWED_GOOGLE_EMAILS` / `VAULT_ALLOWED_OIDC_EMAILS`) get any tools at all.
 - **Accesses the vault** through the GitHub API using a **separate fine-grained PAT**
   (`VAULT_GITHUB_TOKEN`) scoped to Contents Read + Write on the one vault repo.
 - **Transport:** Streamable HTTP at `/mcp`.
@@ -37,7 +38,7 @@ ships generic.
 
 | Purpose | Credential | Scope |
 | --- | --- | --- |
-| **Who may log in** | GitHub **OAuth App** (`GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`) or Google **OAuth client** (`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`) | `read:user` / `openid email profile` only |
+| **Who may log in** | GitHub **OAuth App** (`GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`), Google **OAuth client** (`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`), or an **OIDC client** (`OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET`) | `read:user` / `openid email profile` only |
 | **What the server accesses** | **fine-grained PAT** (`VAULT_GITHUB_TOKEN`) | Contents: Read & Write, limited to your vault repo |
 
 Keeping them separate means logging in never grants repo write via the OAuth app, and the
@@ -53,9 +54,21 @@ its own OAuth app secrets and its own allowlist, because the identity it yields 
 | --- | --- | --- | --- |
 | `github` (default) | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | `VAULT_ALLOWED_GITHUB_LOGINS` | GitHub login |
 | `google` | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | `VAULT_ALLOWED_GOOGLE_EMAILS` | verified Google email (case-insensitive) |
+| `oidc` | `OIDC_ISSUER_URL`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | `VAULT_ALLOWED_OIDC_EMAILS` | verified email from the IdP's `userinfo` (case-insensitive) |
 
-Only the selected provider's keys are required. Google accounts whose email is not verified
-are rejected before the allowlist is consulted.
+Only the selected provider's keys are required. Accounts whose email is not verified are
+rejected before the allowlist is consulted.
+
+The `oidc` provider works with any OpenID Connect IdP — Microsoft Entra ID, Okta, Auth0,
+Keycloak, Slack, … — and resolves its endpoints from
+`<OIDC_ISSUER_URL>/.well-known/openid-configuration`. Two optional secrets tune it:
+
+- `OIDC_DISPLAY_NAME` — the name shown on the approval dialog (default `OpenID`).
+- `OIDC_ALLOW_UNVERIFIED_EMAIL=true` — accept a `userinfo` response that omits
+  `email_verified`. Some IdPs (Entra ID among them) never send the claim, so without this the
+  login is rejected. An explicit `email_verified: false` is rejected regardless. Only enable
+  this on an IdP you control where every account's email is provisioned by an admin; on a
+  multi-tenant or self-service IdP an attacker could register the allowlisted address.
 
 ## Access scope
 
@@ -139,6 +152,12 @@ Client ID and generate a Client Secret (`GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECR
 OAuth consent screen if prompted. Note the Client ID and Client Secret
 (`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`) and set `AUTH_PROVIDER=google`.
 
+**OIDC:** register a confidential web client with your IdP, add the callback above as a
+redirect URI, and grant it the `openid`, `email`, and `profile` scopes. Note the issuer URL
+(e.g. `https://login.microsoftonline.com/<tenant-id>/v2.0` for Entra ID, or
+`https://<org>.okta.com` for Okta), the Client ID, and the Client Secret
+(`OIDC_ISSUER_URL` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET`) and set `AUTH_PROVIDER=oidc`.
+
 ### 5a. Run locally
 
 ```bash
@@ -174,6 +193,18 @@ pnpm exec wrangler secret put AUTH_PROVIDER               # google
 pnpm exec wrangler secret put GOOGLE_CLIENT_ID            # PROD OAuth client (Google login)
 pnpm exec wrangler secret put GOOGLE_CLIENT_SECRET
 pnpm exec wrangler secret put VAULT_ALLOWED_GOOGLE_EMAILS # comma-separated allowed Google emails
+```
+
+For a generic OIDC IdP, replace them with:
+
+```bash
+pnpm exec wrangler secret put AUTH_PROVIDER               # oidc
+pnpm exec wrangler secret put OIDC_ISSUER_URL             # e.g. https://login.microsoftonline.com/<tenant-id>/v2.0
+pnpm exec wrangler secret put OIDC_CLIENT_ID              # PROD OIDC client
+pnpm exec wrangler secret put OIDC_CLIENT_SECRET
+pnpm exec wrangler secret put VAULT_ALLOWED_OIDC_EMAILS   # comma-separated allowed emails
+pnpm exec wrangler secret put OIDC_DISPLAY_NAME           # optional, e.g. "Acme SSO"
+pnpm exec wrangler secret put OIDC_ALLOW_UNVERIFIED_EMAIL # optional: "true" for IdPs that omit email_verified
 ```
 
 Endpoint: `https://vault-mcp.<subdomain>.workers.dev/mcp`
@@ -232,10 +263,15 @@ src/
 ├── env.d.ts                   # secret bindings type augmentation
 └── auth/
     ├── handler.ts             # provider-agnostic OAuth login flow (Hono)
-    ├── providers/             # upstream identity providers: github.ts, google.ts (+ types, selector)
     ├── approval-dialog.ts     # OAuth approval dialog + HTML sanitization
-    ├── workers-oauth-utils.ts # OAuth state / CSRF / approved-clients cookie
-    └── utils.ts               # upstream OAuth authorize URL + token exchange
+    ├── session.ts             # OAuth state / CSRF / approved-clients cookie
+    ├── upstream.ts            # upstream OAuth authorize URL + token exchange
+    ├── props.ts               # identity captured at login, surfaced to the DO as this.props
+    └── providers/             # upstream identity providers (selector in index.ts)
+        ├── types.ts           # UpstreamProvider interface
+        ├── github.ts
+        ├── google.ts          # preset of the OIDC factory with pinned endpoints
+        └── oidc/              # generic OIDC: factory + provider, discovery, fetch options
 ```
 
 Tests live in `tests/` (Vitest), mirroring the `src/` layout.

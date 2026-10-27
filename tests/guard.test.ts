@@ -50,6 +50,16 @@ describe("createGuardedApiHandler with the Google provider", () => {
 		expect(inner.fetch).not.toHaveBeenCalled();
 	});
 
+	it("matches the OIDC allowlist when oidc is the provider", async () => {
+		const oidcEnv = {
+			AUTH_PROVIDER: "oidc",
+			VAULT_ALLOWED_OIDC_EMAILS: "Alice@Example.com",
+			VAULT_ALLOWED_GITHUB_LOGINS: "carol",
+		} as unknown as Env;
+		expect((await handler.fetch?.(request, oidcEnv, ctxWith("alice@example.com")))?.status).toBe(200);
+		expect((await handler.fetch?.(request, oidcEnv, ctxWith("carol")))?.status).toBe(403);
+	});
+
 	it("throws on an unknown provider instead of falling back to GitHub", () => {
 		const badEnv = { AUTH_PROVIDER: "okta" } as unknown as Env;
 		expect(() => handler.fetch?.(request, badEnv, ctxWith("alice"))).toThrow(/AUTH_PROVIDER/);

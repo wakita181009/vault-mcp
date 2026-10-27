@@ -23,9 +23,14 @@ so `wrangler.jsonc` ships generic (no `vars`).
   Preserve this when touching write/delete logic.
 - **The login allowlist gates the whole toolset.** An identity absent from the configured
   provider's allowlist (`VAULT_ALLOWED_GITHUB_LOGINS` for `AUTH_PROVIDER=github`,
-  `VAULT_ALLOWED_GOOGLE_EMAILS` for `google`) must get **zero** tools, not a reduced set — see
-  `guard.ts`. Login providers live in `src/auth/providers/`; the flow in `auth/handler.ts` is
-  provider-agnostic. A Google identity must have a verified email before it can match.
+  `VAULT_ALLOWED_GOOGLE_EMAILS` for `google`, `VAULT_ALLOWED_OIDC_EMAILS` for `oidc`) must get
+  **zero** tools, not a reduced set — see `guard.ts`. Login providers live in
+  `src/auth/providers/`; the flow in `auth/handler.ts` is provider-agnostic. Google and the
+  generic `oidc` provider share `createOidcProvider`; an email identity must be verified
+  (`email_verified: true`) before it can match. The only exception is the explicit
+  `OIDC_ALLOW_UNVERIFIED_EMAIL=true` opt-in for IdPs that never send the claim — an explicit
+  `email_verified: false` is rejected regardless. Keep the OIDC discovery document's `issuer`
+  check in `providers/oidc/discovery.ts`: without it a hostile host could supply foreign endpoints.
 - **`VAULT_GITHUB_TOKEN` stays single-repo scoped.** It needs Contents: Read *and Write* (Write
   covers both `write_note` and `delete_note`), but only on the vault repo. Never widen it beyond
   that one repo or swap in a broader token.

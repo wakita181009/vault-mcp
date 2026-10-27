@@ -3,7 +3,7 @@ import {
 	fetchUpstreamAuthToken,
 	getUpstreamAuthorizeUrl,
 	redirectResponse,
-} from "../../src/auth/utils";
+} from "../../src/auth/upstream";
 
 const jsonResponse = (fields: Record<string, string>, status = 200): Response =>
 	Response.json(fields, { status });

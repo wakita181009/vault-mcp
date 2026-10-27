@@ -14,12 +14,13 @@ vi.mock("octokit", () => ({ Octokit: octo.Octokit }));
 import { createAuthHandler } from "../../src/auth/handler";
 import { githubProvider } from "../../src/auth/providers/github";
 import { googleProvider } from "../../src/auth/providers/google";
+import { oidcProvider } from "../../src/auth/providers/oidc";
 import {
 	addApprovedClient,
 	bindStateToSession,
 	createOAuthState,
 	generateCSRFProtection,
-} from "../../src/auth/workers-oauth-utils";
+} from "../../src/auth/session";
 
 const SECRET = "test-cookie-signing-secret-0000000000";
 
@@ -351,5 +352,135 @@ describe("GET /callback with the Google provider", () => {
 		expect(res.status).toBe(403);
 		expect(await res.text()).toContain("not verified");
 		expect(oauthProvider.completeAuthorization).not.toHaveBeenCalled();
+	});
+});
+
+describe("the generic OIDC provider", () => {
+	const OidcHandler = createAuthHandler(oidcProvider);
+	const ISSUER = "https://idp.example/handler-test";
+	const discovery = {
+		issuer: ISSUER,
+		authorization_endpoint: `${ISSUER}/authorize`,
+		token_endpoint: `${ISSUER}/token`,
+		userinfo_endpoint: `${ISSUER}/userinfo`,
+	};
+	const oidcEnv = (issuer = ISSUER) => ({
+		OAUTH_PROVIDER: oauthProvider,
+		OAUTH_KV: kv,
+		AUTH_PROVIDER: "oidc",
+		OIDC_ISSUER_URL: issuer,
+		OIDC_CLIENT_ID: "ocid",
+		OIDC_CLIENT_SECRET: "osecret",
+		OIDC_DISPLAY_NAME: "Acme SSO",
+		COOKIE_ENCRYPTION_KEY: SECRET,
+	});
+
+	const stubIdp = (userinfo: Record<string, unknown>) => {
+		const fetchMock = vi.fn(async (url: string | URL | Request) => {
+			const href = String(url);
+			if (href.includes("well-known")) return Response.json(discovery);
+			if (href.endsWith("/userinfo")) return Response.json(userinfo);
+			return Response.json({ access_token: "oidc.token" });
+		});
+		vi.stubGlobal("fetch", fetchMock);
+		return fetchMock;
+	};
+
+	const approvedRequest = async (env: Record<string, unknown>) => {
+		const approvedCookie = await addApprovedClient(new Request("https://mcp.example/"), "c1", SECRET);
+		return OidcHandler.request(
+			"https://mcp.example/authorize",
+			{ headers: { Cookie: approvedCookie.split(";")[0] } },
+			env as never,
+		);
+	};
+
+	it("names the configured provider on the approval dialog", async () => {
+		const res = await OidcHandler.request("https://mcp.example/authorize", undefined, oidcEnv() as never);
+		expect(res.status).toBe(200);
+		expect(await res.text()).toContain("Sign in with Acme SSO");
+	});
+
+	it("redirects to the discovered authorization endpoint", async () => {
+		stubIdp({});
+		const res = await approvedRequest(oidcEnv());
+		vi.unstubAllGlobals();
+		expect(res.status).toBe(302);
+		const location = new URL(res.headers.get("Location") ?? "");
+		expect(location.origin + location.pathname).toBe(`${ISSUER}/authorize`);
+		expect(location.searchParams.get("client_id")).toBe("ocid");
+		expect(location.searchParams.get("scope")).toBe("openid email profile");
+	});
+
+	const stubIdpDown = () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => Response.json({ error: "down" }, { status: 503 })),
+		);
+		vi.spyOn(console, "error").mockImplementation(() => {});
+	};
+
+	it("502s on the authorize redirect when discovery fails, without creating state", async () => {
+		stubIdpDown();
+		const res = await approvedRequest(oidcEnv("https://idp.example/handler-down"));
+		vi.unstubAllGlobals();
+		vi.restoreAllMocks();
+		expect(res.status).toBe(502);
+		expect(kv.put).not.toHaveBeenCalled();
+	});
+
+	it("502s on the consent form when discovery fails, before approving the client", async () => {
+		stubIdpDown();
+		const { token, setCookie } = generateCSRFProtection();
+		const body = new FormData();
+		body.set("csrf_token", token);
+		body.set("state", btoa(JSON.stringify({ oauthReqInfo: reqInfo })));
+		const res = await OidcHandler.request(
+			"https://mcp.example/authorize",
+			{ method: "POST", body, headers: { Cookie: setCookie.split(";")[0] } },
+			oidcEnv("https://idp.example/handler-down-post") as never,
+		);
+		vi.unstubAllGlobals();
+		vi.restoreAllMocks();
+		expect(res.status).toBe(502);
+		expect(res.headers.getSetCookie()).toEqual([]);
+		expect(kv.put).not.toHaveBeenCalled();
+	});
+
+	it("502s on the callback when discovery fails, leaving the state unconsumed", async () => {
+		stubIdpDown();
+		const { stateToken } = await createOAuthState(reqInfo as never, kv as never);
+		const { setCookie } = await bindStateToSession(stateToken);
+		const consented = setCookie.split(";")[0].split("=").slice(1).join("=");
+		const res = await OidcHandler.request(
+			`https://mcp.example/callback?state=${stateToken}&code=the-code`,
+			{ headers: { Cookie: `__Host-CONSENTED_STATE=${consented}` } },
+			oidcEnv("https://idp.example/handler-down-cb") as never,
+		);
+		vi.unstubAllGlobals();
+		vi.restoreAllMocks();
+		expect(res.status).toBe(502);
+		expect(kv.delete).not.toHaveBeenCalled();
+		expect(oauthProvider.completeAuthorization).not.toHaveBeenCalled();
+	});
+
+	it("completes the callback through the discovered token and userinfo endpoints", async () => {
+		const fetchMock = stubIdp({ email: "Alice@Example.com", email_verified: true, name: "Alice" });
+		const { stateToken } = await createOAuthState(reqInfo as never, kv as never);
+		const { setCookie } = await bindStateToSession(stateToken);
+		const consented = setCookie.split(";")[0].split("=").slice(1).join("=");
+		const res = await OidcHandler.request(
+			`https://mcp.example/callback?state=${stateToken}&code=the-code`,
+			{ headers: { Cookie: `__Host-CONSENTED_STATE=${consented}` } },
+			oidcEnv() as never,
+		);
+		vi.unstubAllGlobals();
+		expect(res.status).toBe(302);
+		const urls = fetchMock.mock.calls.map(([url]) => String(url));
+		expect(urls).toContain(`${ISSUER}/token`);
+		expect(urls).toContain(`${ISSUER}/userinfo`);
+		expect(oauthProvider.completeAuthorization).toHaveBeenCalledWith(
+			expect.objectContaining({ userId: "alice@example.com" }),
+		);
 	});
 });

@@ -3,12 +3,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { renderApprovalDialog } from "./approval-dialog";
 import { type UpstreamProvider, UpstreamIdentityError } from "./providers";
-import {
-	fetchUpstreamAuthToken,
-	getUpstreamAuthorizeUrl,
-	redirectResponse,
-	type Props,
-} from "./utils";
+import type { Props } from "./props";
 import {
 	addApprovedClient,
 	bindStateToSession,
@@ -18,7 +13,8 @@ import {
 	OAuthError,
 	validateCSRFToken,
 	validateOAuthState,
-} from "./workers-oauth-utils";
+} from "./session";
+import { fetchUpstreamAuthToken, getUpstreamAuthorizeUrl, redirectResponse } from "./upstream";
 
 type AuthEnv = Env & { OAUTH_PROVIDER: OAuthHelpers };
 
@@ -30,9 +26,25 @@ type AuthEnv = Env & { OAUTH_PROVIDER: OAuthHelpers };
 export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: AuthEnv }> {
 	const app = new Hono<{ Bindings: AuthEnv }>();
 
+	// Endpoint resolution can hit the network (OIDC discovery), so it runs
+	// *before* any OAuth state is created or consumed: a failure then costs the
+	// user nothing but a retry, instead of orphaning KV state or burning the
+	// one-shot state on the callback.
+	const resolveEndpoints = async (
+		env: Env,
+	): Promise<[Awaited<ReturnType<UpstreamProvider["endpoints"]>>, null] | [null, Response]> => {
+		try {
+			return [await provider.endpoints(env), null];
+		} catch (error) {
+			console.error("Upstream endpoint resolution failed:", error);
+			return [null, new Response("Login provider unavailable", { status: 502 })];
+		}
+	};
+
 	const redirectToUpstream = (
 		env: Env,
 		request: Request,
+		authorizeUrl: string,
 		stateToken: string,
 		headers: HeadersInit,
 	) =>
@@ -42,7 +54,7 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 				redirect_uri: new URL("/callback", request.url).href,
 				scope: provider.scope,
 				state: stateToken,
-				upstream_url: provider.authorizeUrl,
+				upstream_url: authorizeUrl,
 			}),
 			headers,
 		);
@@ -56,9 +68,11 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 
 		// Already approved: skip the dialog, but still bind state to the session.
 		if (await isClientApproved(c.req.raw, clientId, c.env.COOKIE_ENCRYPTION_KEY)) {
+			const [endpoints, unavailable] = await resolveEndpoints(c.env);
+			if (unavailable) return unavailable;
 			const { stateToken } = await createOAuthState(oauthReqInfo, c.env.OAUTH_KV);
 			const { setCookie: sessionBindingCookie } = await bindStateToSession(stateToken);
-			return redirectToUpstream(c.env, c.req.raw, stateToken, {
+			return redirectToUpstream(c.env, c.req.raw, endpoints.authorizeUrl, stateToken, {
 				"Set-Cookie": sessionBindingCookie,
 			});
 		}
@@ -69,7 +83,7 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 			client: await c.env.OAUTH_PROVIDER.lookupClient(clientId),
 			csrfToken,
 			server: {
-				description: `Remote MCP for a private Obsidian vault (read, create, update, and delete notes). Sign in with ${provider.displayName} to connect.`,
+				description: `Remote MCP for a private Obsidian vault (read, create, update, and delete notes). Sign in with ${provider.displayName(c.env)} to connect.`,
 				logo: provider.logo,
 				name: "Vault MCP",
 			},
@@ -99,6 +113,9 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 				return c.text("Invalid request", 400);
 			}
 
+			const [endpoints, unavailable] = await resolveEndpoints(c.env);
+			if (unavailable) return unavailable;
+
 			const approvedClientCookie = await addApprovedClient(
 				c.req.raw,
 				state.oauthReqInfo.clientId,
@@ -112,7 +129,7 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 			headers.append("Set-Cookie", approvedClientCookie);
 			headers.append("Set-Cookie", sessionBindingCookie);
 
-			return redirectToUpstream(c.env, c.req.raw, stateToken, headers);
+			return redirectToUpstream(c.env, c.req.raw, endpoints.authorizeUrl, stateToken, headers);
 		} catch (error) {
 			console.error("POST /authorize error:", error);
 			if (error instanceof OAuthError) {
@@ -127,9 +144,12 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 	 * Upstream OAuth callback: exchanges the code for an access token, resolves
 	 * the user's identity, stores it on the client's `props`, and redirects to
 	 * the client's own callback. validateOAuthState guards against CSRF (see
-	 * workers-oauth-utils).
+	 * session.ts).
 	 */
 	app.get("/callback", async (c) => {
+		const [endpoints, unavailable] = await resolveEndpoints(c.env);
+		if (unavailable) return unavailable;
+
 		let oauthReqInfo: AuthRequest;
 		let clearSessionCookie: string;
 
@@ -161,13 +181,13 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 			client_secret: clientSecret,
 			code: codeResult.data,
 			redirect_uri: new URL("/callback", c.req.url).href,
-			upstream_url: provider.tokenUrl,
+			upstream_url: endpoints.tokenUrl,
 		});
 		if (errResponse) return errResponse;
 
 		let identity: Awaited<ReturnType<UpstreamProvider["fetchIdentity"]>>;
 		try {
-			identity = await provider.fetchIdentity(accessToken);
+			identity = await provider.fetchIdentity(accessToken, c.env);
 		} catch (error) {
 			if (error instanceof UpstreamIdentityError) {
 				return c.text(error.message, 403);
