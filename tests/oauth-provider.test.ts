@@ -1,0 +1,42 @@
+import { describe, expect, it } from "vitest";
+import { createOAuthProvider } from "../src/oauth-provider";
+
+// Metadata routes never touch KV, so an empty env is enough to exercise the
+// provider wiring without a Workers runtime.
+const env = {} as unknown as Env;
+const ctx = {} as unknown as ExecutionContext;
+const apiHandler = { fetch: () => new Response("unreachable", { status: 500 }) };
+
+const worker = {
+	fetch: (req: Request) => createOAuthProvider(apiHandler, new URL(req.url).origin).fetch(req, env, ctx),
+};
+
+const protectedResourceMetadata = async (origin: string) => {
+	const res = await worker.fetch(new Request(`${origin}/.well-known/oauth-protected-resource/mcp`));
+	expect(res.status).toBe(200);
+	return (await res.json()) as { resource: string; authorization_servers: string[] };
+};
+
+describe("OAuthProvider wiring", () => {
+	it("advertises the request origin plus /mcp as the canonical resource", async () => {
+		const body = await protectedResourceMetadata("https://vault-mcp.example.workers.dev");
+		expect(body.resource).toBe("https://vault-mcp.example.workers.dev/mcp");
+		expect(body.authorization_servers).toEqual(["https://vault-mcp.example.workers.dev"]);
+	});
+
+	it("follows the origin so a custom domain and wrangler dev each get their own resource", async () => {
+		const custom = await protectedResourceMetadata("https://mcp.example.com");
+		expect(custom.resource).toBe("https://mcp.example.com/mcp");
+
+		const local = await protectedResourceMetadata("http://localhost:8787");
+		expect(local.resource).toBe("http://localhost:8787/mcp");
+	});
+
+	it("challenges an unauthenticated /mcp request with the matching resource metadata", async () => {
+		const res = await worker.fetch(new Request("https://mcp.example.com/mcp", { method: "POST" }));
+		expect(res.status).toBe(401);
+		expect(res.headers.get("www-authenticate")).toContain(
+			'resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource/mcp"',
+		);
+	});
+});
