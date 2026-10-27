@@ -3,12 +3,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { renderApprovalDialog } from "./approval-dialog";
 import { type UpstreamProvider, UpstreamIdentityError } from "./providers";
-import {
-	fetchUpstreamAuthToken,
-	getUpstreamAuthorizeUrl,
-	redirectResponse,
-	type Props,
-} from "./utils";
+import type { Props } from "./props";
 import {
 	addApprovedClient,
 	bindStateToSession,
@@ -18,7 +13,8 @@ import {
 	OAuthError,
 	validateCSRFToken,
 	validateOAuthState,
-} from "./workers-oauth-utils";
+} from "./session";
+import { fetchUpstreamAuthToken, getUpstreamAuthorizeUrl, redirectResponse } from "./upstream";
 
 type AuthEnv = Env & { OAUTH_PROVIDER: OAuthHelpers };
 
@@ -148,7 +144,7 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 	 * Upstream OAuth callback: exchanges the code for an access token, resolves
 	 * the user's identity, stores it on the client's `props`, and redirects to
 	 * the client's own callback. validateOAuthState guards against CSRF (see
-	 * workers-oauth-utils).
+	 * session.ts).
 	 */
 	app.get("/callback", async (c) => {
 		const [endpoints, unavailable] = await resolveEndpoints(c.env);

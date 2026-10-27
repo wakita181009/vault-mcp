@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { discoverOidcEndpoints } from "../../src/auth/providers/oidc-discovery";
+import { discoverOidcEndpoints } from "../../../../src/auth/providers/oidc/discovery";
 
 const document = (issuer: string, overrides: Record<string, unknown> = {}) => ({
 	issuer,

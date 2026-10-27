@@ -263,10 +263,15 @@ src/
 ├── env.d.ts                   # secret bindings type augmentation
 └── auth/
     ├── handler.ts             # provider-agnostic OAuth login flow (Hono)
-    ├── providers/             # upstream identity providers: github.ts, google.ts, oidc.ts (+ discovery, types, selector)
     ├── approval-dialog.ts     # OAuth approval dialog + HTML sanitization
-    ├── workers-oauth-utils.ts # OAuth state / CSRF / approved-clients cookie
-    └── utils.ts               # upstream OAuth authorize URL + token exchange
+    ├── session.ts             # OAuth state / CSRF / approved-clients cookie
+    ├── upstream.ts            # upstream OAuth authorize URL + token exchange
+    ├── props.ts               # identity captured at login, surfaced to the DO as this.props
+    └── providers/             # upstream identity providers (selector in index.ts)
+        ├── types.ts           # UpstreamProvider interface
+        ├── github.ts
+        ├── google.ts          # preset of the OIDC factory with pinned endpoints
+        └── oidc/              # generic OIDC: factory + provider, discovery, fetch options
 ```
 
 Tests live in `tests/` (Vitest), mirroring the `src/` layout.

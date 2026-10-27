@@ -30,7 +30,7 @@ so `wrangler.jsonc` ships generic (no `vars`).
   (`email_verified: true`) before it can match. The only exception is the explicit
   `OIDC_ALLOW_UNVERIFIED_EMAIL=true` opt-in for IdPs that never send the claim — an explicit
   `email_verified: false` is rejected regardless. Keep the OIDC discovery document's `issuer`
-  check in `oidc-discovery.ts`: without it a hostile host could supply foreign endpoints.
+  check in `providers/oidc/discovery.ts`: without it a hostile host could supply foreign endpoints.
 - **`VAULT_GITHUB_TOKEN` stays single-repo scoped.** It needs Contents: Read *and Write* (Write
   covers both `write_note` and `delete_note`), but only on the vault repo. Never widen it beyond
   that one repo or swap in a broader token.

@@ -20,7 +20,7 @@ import {
 	bindStateToSession,
 	createOAuthState,
 	generateCSRFProtection,
-} from "../../src/auth/workers-oauth-utils";
+} from "../../src/auth/session";
 
 const SECRET = "test-cookie-signing-secret-0000000000";
 

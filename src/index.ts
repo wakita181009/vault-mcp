@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpAgent } from "agents/mcp";
-import type { Props } from "./auth/utils";
+import type { Props } from "./auth/props";
 import { createGuardedApiHandler } from "./guard";
 import { MCP_PATH, createOAuthProvider } from "./oauth-provider";
 import {

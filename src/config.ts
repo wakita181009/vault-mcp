@@ -15,7 +15,7 @@ import { z } from "zod";
  */
 
 // The cookie signing key is documented as `openssl rand -hex 32` (64 chars) and
-// used as a raw HMAC key, not hex-decoded (see workers-oauth-utils importKey).
+// used as a raw HMAC key, not hex-decoded (see auth/session.ts importKey).
 // So any sufficiently long string is valid — we guard length, not hex format,
 // to avoid rejecting legitimate non-hex keys while catching truncated/placeholder ones.
 const MIN_COOKIE_KEY_LENGTH = 32;

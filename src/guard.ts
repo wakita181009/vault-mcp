@@ -1,5 +1,5 @@
 import { authProviderFromEnv } from "./auth/providers";
-import type { Props } from "./auth/utils";
+import type { Props } from "./auth/props";
 import { isLoginAllowed } from "./tools";
 
 /** A minimal fetch handler: the gate's own shape and the inner one it wraps. */

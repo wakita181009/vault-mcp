@@ -8,7 +8,7 @@ import {
 	OAuthError,
 	validateCSRFToken,
 	validateOAuthState,
-} from "../../src/auth/workers-oauth-utils";
+} from "../../src/auth/session";
 
 /** In-memory KVNamespace stand-in covering the get/put/delete surface used here. */
 const makeKV = () => {

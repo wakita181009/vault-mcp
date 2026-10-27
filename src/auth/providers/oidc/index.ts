@@ -1,9 +1,9 @@
 import { z } from "zod";
-import type { AuthProviderName } from "../../config";
-import { parseList } from "../../vault";
+import type { AuthProviderName } from "../../../config";
+import { parseList } from "../../../vault";
 import { UPSTREAM_FETCH_INIT } from "./fetch-init";
-import { discoverOidcEndpoints, type OidcEndpoints } from "./oidc-discovery";
-import { type UpstreamProvider, UpstreamIdentityError } from "./types";
+import { discoverOidcEndpoints, type OidcEndpoints } from "./discovery";
+import { type UpstreamProvider, UpstreamIdentityError } from "../types";
 
 const userinfoSchema = z.object({
 	email: z.string().min(1),
