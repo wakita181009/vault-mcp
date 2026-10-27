@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/wakita181009/vault-mcp/compare/v0.3.0...v0.4.0) (2026-10-27)
+
+
+### Features
+
+* add a generic OIDC login provider and rebuild Google on it ([#65](https://github.com/wakita181009/vault-mcp/issues/65)) ([f7b8eaf](https://github.com/wakita181009/vault-mcp/commit/f7b8eafe4a2f88877398335806957cbff1851e3c))
+* make the login provider selectable (GitHub or Google) ([#63](https://github.com/wakita181009/vault-mcp/issues/63)) ([fa1c551](https://github.com/wakita181009/vault-mcp/commit/fa1c5512aeeafe7aee4cdd223ee1ce54a3169b74))
+
 ## [0.3.0](https://github.com/wakita181009/vault-mcp/compare/v0.2.0...v0.3.0) (2026-10-27)
 
 
