@@ -1,9 +1,8 @@
-import OAuthProvider, { type OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpAgent } from "agents/mcp";
-import { GitHubHandler } from "./auth/github-handler";
 import type { Props } from "./auth/utils";
 import { createGuardedApiHandler } from "./guard";
+import { MCP_PATH, createOAuthProvider } from "./oauth-provider";
 import {
 	deleteNoteInput,
 	listNotesInput,
@@ -67,16 +66,9 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 	}
 }
 
-const vaultMcpHandler = VaultMCP.serve("/mcp");
+const apiHandler = createGuardedApiHandler(VaultMCP.serve(MCP_PATH));
 
-export default new OAuthProvider({
-	apiHandler: createGuardedApiHandler(vaultMcpHandler),
-	apiRoute: "/mcp",
-	authorizeEndpoint: "/authorize",
-	clientRegistrationEndpoint: "/register",
-	defaultHandler: {
-		fetch: (req, env, ctx) =>
-			GitHubHandler.fetch(req, env as Env & { OAUTH_PROVIDER: OAuthHelpers }, ctx),
-	} satisfies ExportedHandler<Env>,
-	tokenEndpoint: "/token",
-});
+export default {
+	fetch: (req, env, ctx) =>
+		createOAuthProvider(apiHandler, new URL(req.url).origin).fetch(req, env, ctx),
+} satisfies ExportedHandler<Env>;
