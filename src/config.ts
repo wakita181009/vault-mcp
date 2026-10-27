@@ -26,7 +26,7 @@ const MIN_COOKIE_KEY_LENGTH = 32;
 const DEFAULT_DENIED_PREFIXES = ".git/,.obsidian/,.claude/";
 
 // Keys every deploy needs regardless of which upstream login provider is used.
-const commonShape = {
+export const commonEnvSchema = z.object({
 	COOKIE_ENCRYPTION_KEY: z
 		.string()
 		.min(MIN_COOKIE_KEY_LENGTH, `too short — generate with \`openssl rand -hex 32\``),
@@ -42,31 +42,50 @@ const commonShape = {
 	VAULT_BRANCH: z.string().min(1).default("main"),
 	VAULT_ALLOWED_PREFIXES: z.string().default(""),
 	VAULT_DENIED_PREFIXES: z.string().default(DEFAULT_DENIED_PREFIXES),
-};
+});
 
 // Each login provider brings its own OAuth app credentials and its own
 // allowlist, because the identity it yields differs (GitHub login vs Google
 // email). `AUTH_PROVIDER` picks one; it defaults to GitHub so existing deploys
 // keep working without setting it.
-export const githubAuthSchema = z.object({
-	...commonShape,
+export const githubAuthSchema = commonEnvSchema.extend({
 	AUTH_PROVIDER: z.literal("github").default("github"),
 	GITHUB_CLIENT_ID: z.string().min(1),
 	GITHUB_CLIENT_SECRET: z.string().min(1),
 	VAULT_ALLOWED_GITHUB_LOGINS: z.string(),
 });
 
-export const googleAuthSchema = z.object({
-	...commonShape,
+export const googleAuthSchema = commonEnvSchema.extend({
 	AUTH_PROVIDER: z.literal("google"),
 	GOOGLE_CLIENT_ID: z.string().min(1),
 	GOOGLE_CLIENT_SECRET: z.string().min(1),
 	VAULT_ALLOWED_GOOGLE_EMAILS: z.string(),
 });
 
+// Any OpenID Connect IdP (Entra ID, Okta, Auth0, Keycloak, …), located by its
+// issuer URL; the endpoints are resolved via discovery at login time.
+export const oidcAuthSchema = commonEnvSchema.extend({
+	AUTH_PROVIDER: z.literal("oidc"),
+	// The discovery URL is built by appending `/.well-known/openid-configuration`,
+	// which a query string or fragment would silently corrupt.
+	OIDC_ISSUER_URL: z
+		.string()
+		.url()
+		.startsWith("https://", "must be an https URL")
+		.refine((url) => !/[?#]/.test(url), "must not contain a query string or fragment"),
+	OIDC_CLIENT_ID: z.string().min(1),
+	OIDC_CLIENT_SECRET: z.string().min(1),
+	// Optional knobs; their defaults live next to the provider in `auth/providers/oidc.ts`
+	// because the provider reads the raw env before `parseEnv` runs.
+	OIDC_DISPLAY_NAME: z.string().min(1).optional(),
+	OIDC_ALLOW_UNVERIFIED_EMAIL: z.enum(["true", "false"]).optional(),
+	VAULT_ALLOWED_OIDC_EMAILS: z.string(),
+});
+
 export const envSchema = z.discriminatedUnion("AUTH_PROVIDER", [
 	githubAuthSchema,
 	googleAuthSchema,
+	oidcAuthSchema,
 ]);
 
 export type AuthProviderName = z.infer<typeof envSchema>["AUTH_PROVIDER"];

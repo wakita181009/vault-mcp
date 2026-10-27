@@ -1,8 +1,9 @@
 # Local dev secrets for `wrangler dev`. Copy to `.dev.vars` and fill in.
 # `.dev.vars` is gitignored — never commit real values.
 
-# Who verifies the user at login: "github" (default) or "google". Each provider
-# needs its own OAuth app secrets and its own allowlist (below).
+# Who verifies the user at login: "github" (default), "google", or "oidc" (any
+# OpenID Connect IdP). Each provider needs its own OAuth app secrets and its own
+# allowlist (below).
 # AUTH_PROVIDER=github
 
 # GitHub OAuth App used for LOGIN (AUTH_PROVIDER=github).
@@ -14,6 +15,18 @@ VAULT_ALLOWED_GITHUB_LOGINS=<comma-separated github logins allowed to use the MC
 # GOOGLE_CLIENT_ID=<your google oauth client id>
 # GOOGLE_CLIENT_SECRET=<your google oauth client secret>
 # VAULT_ALLOWED_GOOGLE_EMAILS=<comma-separated verified google emails allowed to use the MCP>
+
+# Generic OIDC client used for LOGIN (AUTH_PROVIDER=oidc): Entra ID, Okta, Auth0,
+# Keycloak, … Endpoints are discovered from <issuer>/.well-known/openid-configuration.
+# OIDC_ISSUER_URL=https://login.microsoftonline.com/<tenant-id>/v2.0
+# OIDC_CLIENT_ID=<your oidc client id>
+# OIDC_CLIENT_SECRET=<your oidc client secret>
+# VAULT_ALLOWED_OIDC_EMAILS=<comma-separated verified emails allowed to use the MCP>
+# Optional: name shown on the approval dialog (default "OpenID").
+# OIDC_DISPLAY_NAME=Acme SSO
+# Optional: accept a userinfo response that omits `email_verified` (some IdPs,
+# e.g. Entra ID, never send it). An explicit `email_verified: false` is still rejected.
+# OIDC_ALLOW_UNVERIFIED_EMAIL=false
 
 # `openssl rand -hex 32`
 COOKIE_ENCRYPTION_KEY=<32-byte hex string>

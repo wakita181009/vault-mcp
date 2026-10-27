@@ -1,5 +1,11 @@
 import type { z } from "zod";
-import type { githubAuthSchema, googleAuthSchema } from "./config";
+import type {
+	AuthProviderName,
+	commonEnvSchema,
+	githubAuthSchema,
+	googleAuthSchema,
+	oidcAuthSchema,
+} from "./config";
 
 /**
  * The raw Worker env — exactly the keys `parseEnv` reads, derived from the zod
@@ -15,13 +21,15 @@ import type { githubAuthSchema, googleAuthSchema } from "./config";
  * `Cloudflare.Env` namespace (the type of `env` imported from `cloudflare:workers`).
  * Both are absent from the `wrangler types` output, so we augment them here.
  */
-type GitHubAuthEnv = z.input<typeof githubAuthSchema>;
-type GoogleAuthEnv = z.input<typeof googleAuthSchema>;
-type CommonEnv = Omit<GitHubAuthEnv, keyof Omit<GitHubAuthEnv, keyof GoogleAuthEnv>>;
-type VaultEnv = Omit<CommonEnv, "AUTH_PROVIDER"> & {
-	AUTH_PROVIDER?: GitHubAuthEnv["AUTH_PROVIDER"] | GoogleAuthEnv["AUTH_PROVIDER"];
-} & Partial<Omit<GitHubAuthEnv, keyof CommonEnv>> &
-	Partial<Omit<GoogleAuthEnv, keyof CommonEnv>>;
+type CommonEnv = z.input<typeof commonEnvSchema>;
+type ProviderKeys<Schema extends z.ZodTypeAny> = Partial<
+	Omit<z.input<Schema>, keyof CommonEnv | "AUTH_PROVIDER">
+>;
+type VaultEnv = CommonEnv & { AUTH_PROVIDER?: AuthProviderName } & ProviderKeys<
+		typeof githubAuthSchema
+	> &
+	ProviderKeys<typeof googleAuthSchema> &
+	ProviderKeys<typeof oidcAuthSchema>;
 
 declare global {
 	interface Env extends VaultEnv {}

@@ -4,11 +4,13 @@ import type { UpstreamProvider } from "./types";
 
 export const githubProvider: UpstreamProvider = {
 	name: "github",
-	displayName: "GitHub",
+	displayName: () => "GitHub",
 	logo: "https://avatars.githubusercontent.com/u/314135?s=200&v=4",
-	authorizeUrl: "https://github.com/login/oauth/authorize",
-	tokenUrl: "https://github.com/login/oauth/access_token",
 	scope: "read:user",
+	endpoints: async () => ({
+		authorizeUrl: "https://github.com/login/oauth/authorize",
+		tokenUrl: "https://github.com/login/oauth/access_token",
+	}),
 	credentials: (env) => ({
 		clientId: env.GITHUB_CLIENT_ID ?? "",
 		clientSecret: env.GITHUB_CLIENT_SECRET ?? "",
