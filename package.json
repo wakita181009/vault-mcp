@@ -11,13 +11,13 @@
 		"dev": "vite dev",
 		"start": "vite dev",
 		"preview": "vite build && vite preview",
-		"cf-typegen": "wrangler types --strict-vars false",
+		"cf-typegen": "wrangler types --strict-vars false --env-file /dev/null",
 		"lint": "biome lint ./src",
 		"lint:fix": "biome lint --write ./src",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
-		"typecheck": "wrangler types --strict-vars false --check && tsc --noEmit",
+		"typecheck": "wrangler types --strict-vars false --env-file /dev/null --check && tsc --noEmit",
 		"prepare": "husky || true"
 	},
 	"dependencies": {

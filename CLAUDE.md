@@ -36,7 +36,9 @@ so `wrangler.jsonc` ships generic (no `vars`).
 - Code, comments, and docs in English. Comments explain **why**, not what.
 - Immutability; small, focused modules.
 - Secrets: `.dev.vars` locally, `wrangler secret put` in production. Their types live in
-  `src/env.d.ts` (they are not emitted by `wrangler types`).
+  `src/env.d.ts` (they are not emitted by `wrangler types`). `cf-typegen`/`typecheck` pass
+  `--env-file /dev/null` so a local `.dev.vars` does not leak its keys into
+  `worker-configuration.d.ts` and make the committed file differ from CI.
 - After editing `wrangler.jsonc`, run `pnpm cf-typegen`, then verify with `pnpm typecheck`
   and `pnpm build && pnpm exec wrangler deploy --dry-run` (the build refreshes the
   `.wrangler/deploy/config.json` redirect that points wrangler at `dist/vault_mcp/`).
