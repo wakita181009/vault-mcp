@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.0](https://github.com/wakita181009/vault-mcp/compare/v0.2.0...v0.3.0) (2026-10-27)
+
+
+### Features
+
+* build with Vite and compile MCP tool schemas with zod-aot ([2bc99d9](https://github.com/wakita181009/vault-mcp/commit/2bc99d9991f2db14c1bee7e62c143bdd8d156feb))
+
+
+### Bug Fixes
+
+* keep worker-configuration.d.ts independent of local .dev.vars ([#61](https://github.com/wakita181009/vault-mcp/issues/61)) ([f3f7c2a](https://github.com/wakita181009/vault-mcp/commit/f3f7c2a9fd468603afa49714fb23f8a04fa744d6))
+* pin zod-aot include to src/schemas.ts (include matching is substring-based) ([8b54d0a](https://github.com/wakita181009/vault-mcp/commit/8b54d0a9e660f96bb964fab59be8b70dad2c76bd))
+
 ## [0.2.0](https://github.com/wakita181009/vault-mcp/compare/v0.1.0...v0.2.0) (2026-08-21)
 
 
