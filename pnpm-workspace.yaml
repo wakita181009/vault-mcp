@@ -7,3 +7,4 @@ minimumReleaseAgeExclude:
   - '@cloudflare/vite-plugin@1.53.1'
   - miniflare@5.20260820.0-alpha
   - wrangler@4.125.0
+  - agents@0.31.0
