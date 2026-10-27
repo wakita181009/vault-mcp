@@ -21,8 +21,8 @@ importers:
         specifier: 2.3.1
         version: 2.3.1
       agents:
-        specifier: ^0.31.0
-        version: 0.31.0(@babel/core@8.0.1)(@babel/runtime@7.29.7)(@modelcontextprotocol/client@2.3.1)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(zod@4.6.7))(@modelcontextprotocol/server@2.3.1)(react@19.2.7)(rolldown@1.2.15)(vite@8.3.5(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))(zod@4.6.7)
+        specifier: ^0.30.1
+        version: 0.30.1(@babel/core@8.0.1)(@babel/runtime@7.29.7)(@modelcontextprotocol/client@2.3.1)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(zod@4.6.7))(@modelcontextprotocol/server@2.3.1)(react@19.2.7)(rolldown@1.2.15)(vite@8.3.5(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))(zod@4.6.7)
       hono:
         specifier: ^4.13.13
         version: 4.13.13
@@ -1155,8 +1155,8 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
-  agents@0.31.0:
-    resolution: {integrity: sha512-FQeIsuMXycGPtQUxpRcT3ArVe8tkhGkioGLQ1kKRIzDCbYBOyx3RzAxi+G2dq6pku+uUqR04QYg+i3BzDouMnA==}
+  agents@0.30.1:
+    resolution: {integrity: sha512-CgDYWFVX73Y2l2BMeQenljAGF+0Mp3qnbFo1Zp68WCt77Ub58KYzez0ZPDY8s0i38wrR+HezYfnneQP/qD5IBw==}
     hasBin: true
     peerDependencies:
       '@ai-sdk/provider': ^4.0.0
@@ -1191,10 +1191,6 @@ packages:
       '@earendil-works/pi-ai':
         optional: true
       '@earendil-works/pi-durable':
-        optional: true
-      '@modelcontextprotocol/sdk':
-        optional: true
-      '@modelcontextprotocol/server':
         optional: true
       '@opencode/plugin':
         optional: true
@@ -3051,11 +3047,13 @@ snapshots:
 
   acorn@8.19.0: {}
 
-  agents@0.31.0(@babel/core@8.0.1)(@babel/runtime@7.29.7)(@modelcontextprotocol/client@2.3.1)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(zod@4.6.7))(@modelcontextprotocol/server@2.3.1)(react@19.2.7)(rolldown@1.2.15)(vite@8.3.5(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))(zod@4.6.7):
+  agents@0.30.1(@babel/core@8.0.1)(@babel/runtime@7.29.7)(@modelcontextprotocol/client@2.3.1)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(zod@4.6.7))(@modelcontextprotocol/server@2.3.1)(react@19.2.7)(rolldown@1.2.15)(vite@8.3.5(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))(zod@4.6.7):
     dependencies:
       '@babel/plugin-proposal-decorators': 8.0.2(@babel/core@8.0.1)
       '@cfworker/json-schema': 4.1.1
       '@modelcontextprotocol/client': 2.3.1
+      '@modelcontextprotocol/sdk': 1.32.1(@cfworker/json-schema@4.1.1)(zod@4.6.7)
+      '@modelcontextprotocol/server': 2.3.1
       '@rolldown/plugin-babel': 0.2.3(@babel/core@8.0.1)(@babel/runtime@7.29.7)(rolldown@1.2.15)(vite@8.3.5(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
       capnweb: 0.12.0
       cron-schedule: 6.0.0
@@ -3067,8 +3065,6 @@ snapshots:
       yaml: 2.9.0
       zod: 4.6.7
     optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.32.1(@cfworker/json-schema@4.1.1)(zod@4.6.7)
-      '@modelcontextprotocol/server': 2.3.1
       react: 19.2.7
       vite: 8.3.5(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0)
     transitivePeerDependencies:
