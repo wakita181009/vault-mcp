@@ -161,6 +161,24 @@ describe("POST /authorize", () => {
 		expect(await res.text()).toContain("Invalid request");
 	});
 
+	it("500s with the message when state storage fails", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		kv.put.mockRejectedValueOnce(new Error("kv down"));
+		const { token, setCookie } = generateCSRFProtection();
+		const res = await postForm({ csrf_token: token, state: validState() }, setCookie.split(";")[0]);
+		expect(res.status).toBe(500);
+		expect(await res.text()).toContain("kv down");
+	});
+
+	it("stringifies a non-Error throw in the 500 message", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		kv.put.mockRejectedValueOnce("plain string failure");
+		const { token, setCookie } = generateCSRFProtection();
+		const res = await postForm({ csrf_token: token, state: validState() }, setCookie.split(";")[0]);
+		expect(res.status).toBe(500);
+		expect(await res.text()).toContain("plain string failure");
+	});
+
 	it("returns the OAuthError response when CSRF validation fails", async () => {
 		const res = await postForm({ csrf_token: "x", state: validState() });
 		expect(res.status).toBe(400);
@@ -201,6 +219,46 @@ describe("GET /callback", () => {
 	it("returns an OAuthError when state validation fails", async () => {
 		const res = await callback("code=the-code", null);
 		expect(res.status).toBe(400);
+	});
+
+	it("500s when state lookup fails for a non-OAuth reason", async () => {
+		const { stateToken, consented } = await seedState();
+		kv.get.mockRejectedValueOnce(new Error("kv down"));
+		const res = await callback(`state=${stateToken}&code=the-code`, consented);
+		expect(res.status).toBe(500);
+		expect(await res.text()).toBe("Internal server error");
+	});
+
+	it("400s when the stored request has no client id", async () => {
+		const { stateToken } = await createOAuthState({ ...reqInfo, clientId: undefined } as never, kv as never);
+		const { setCookie } = await bindStateToSession(stateToken);
+		const consented = setCookie.split(";")[0].split("=").slice(1).join("=");
+		const res = await callback(`state=${stateToken}&code=the-code`, consented);
+		expect(res.status).toBe(400);
+		expect(await res.text()).toContain("Invalid OAuth request data");
+	});
+
+	it("clears the consent cookie on the final redirect", async () => {
+		vi.stubGlobal("fetch", vi.fn(async () => Response.json({ access_token: "gho_token" })));
+		octo.getAuthenticated.mockResolvedValue({ data: { login: "alice", name: null, email: null } });
+		const { stateToken, consented } = await seedState();
+		const res = await callback(`state=${stateToken}&code=the-code`, consented);
+		expect(res.headers.get("Set-Cookie")).toContain("Max-Age=0");
+		expect(oauthProvider.completeAuthorization).toHaveBeenCalledWith(
+			expect.objectContaining({ props: expect.objectContaining({ name: "alice", email: "" }) }),
+		);
+		vi.unstubAllGlobals();
+	});
+
+	it("propagates unexpected identity lookup failures as a 500", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		vi.stubGlobal("fetch", vi.fn(async () => Response.json({ access_token: "gho_token" })));
+		octo.getAuthenticated.mockRejectedValue(new Error("github down"));
+		const { stateToken, consented } = await seedState();
+		const res = await callback(`state=${stateToken}&code=the-code`, consented);
+		expect(res.status).toBe(500);
+		expect(oauthProvider.completeAuthorization).not.toHaveBeenCalled();
+		vi.unstubAllGlobals();
 	});
 
 	it("400s when the authorization code is missing", async () => {

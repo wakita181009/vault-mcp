@@ -29,6 +29,10 @@ describe("githubProvider", () => {
 		expect(githubProvider.credentials(env)).toEqual({ clientId: "cid", clientSecret: "secret" });
 		expect(githubProvider.allowedLogins(env)).toEqual(["alice", "bob"]);
 	});
+
+	it("yields empty credentials when the GitHub OAuth app keys are unset", () => {
+		expect(githubProvider.credentials({} as unknown as Env)).toEqual({ clientId: "", clientSecret: "" });
+	});
 });
 
 describe("googleProvider.fetchIdentity", () => {
@@ -70,6 +74,10 @@ describe("googleProvider.fetchIdentity", () => {
 	it("rejects a failed userinfo request", async () => {
 		stubUserinfo({ error: "invalid_token" }, 401);
 		await expect(googleProvider.fetchIdentity("tok")).rejects.toThrow(/401/);
+	});
+
+	it("yields empty credentials when the Google OAuth client keys are unset", () => {
+		expect(googleProvider.credentials({} as unknown as Env)).toEqual({ clientId: "", clientSecret: "" });
 	});
 
 	it("lowercases the configured allowlist", () => {

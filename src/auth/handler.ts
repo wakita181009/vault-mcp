@@ -34,7 +34,7 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 		env: Env,
 		request: Request,
 		stateToken: string,
-		headers: HeadersInit = {},
+		headers: HeadersInit,
 	) =>
 		redirectResponse(
 			getUpstreamAuthorizeUrl({
@@ -192,14 +192,9 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 			userId: login,
 		});
 
-		const headers = new Headers({ Location: redirectTo });
-		if (clearSessionCookie) {
-			headers.set("Set-Cookie", clearSessionCookie);
-		}
-
 		return new Response(null, {
 			status: 302,
-			headers,
+			headers: { Location: redirectTo, "Set-Cookie": clearSessionCookie },
 		});
 	});
 
