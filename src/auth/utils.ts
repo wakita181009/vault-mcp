@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export function getUpstreamAuthorizeUrl({
 	upstream_url,
 	client_id,
@@ -33,7 +35,16 @@ export function redirectResponse(location: string, headers: HeadersInit = {}): R
 	});
 }
 
-/** Exchanges an authorization code for an access token. Returns `[token, null]` on success, `[null, errorResponse]` on failure. */
+const tokenResponseSchema = z.object({ access_token: z.string().min(1) });
+
+/**
+ * Exchanges an authorization code for an access token. Returns `[token, null]`
+ * on success, `[null, errorResponse]` on failure.
+ *
+ * The request is the standard OAuth 2.0 code grant; the `Accept` header makes
+ * GitHub answer in JSON like every other provider (its default is
+ * form-encoded), so one parser covers them all.
+ */
 export async function fetchUpstreamAuthToken({
 	client_id,
 	client_secret,
@@ -48,8 +59,15 @@ export async function fetchUpstreamAuthToken({
 	client_id: string;
 }): Promise<[string, null] | [null, Response]> {
 	const resp = await fetch(upstream_url, {
-		body: new URLSearchParams({ client_id, client_secret, code, redirect_uri }).toString(),
+		body: new URLSearchParams({
+			client_id,
+			client_secret,
+			code,
+			redirect_uri,
+			grant_type: "authorization_code",
+		}).toString(),
 		headers: {
+			Accept: "application/json",
 			"Content-Type": "application/x-www-form-urlencoded",
 		},
 		method: "POST",
@@ -58,17 +76,17 @@ export async function fetchUpstreamAuthToken({
 		console.error("Upstream token exchange failed:", await resp.text());
 		return [null, new Response("Failed to fetch access token", { status: 500 })];
 	}
-	const body = await resp.formData();
-	const accessToken = body.get("access_token");
-	if (typeof accessToken !== "string" || accessToken.length === 0) {
+	const body = tokenResponseSchema.safeParse(await resp.json().catch(() => null));
+	if (!body.success) {
 		return [null, new Response("Missing access token", { status: 400 })];
 	}
-	return [accessToken, null];
+	return [body.data.access_token, null];
 }
 
 // Context from the auth process, encrypted & stored in the auth token
 // and provided to the DurableMCP as this.props
 export type Props = {
+	/** Allowlist identity: GitHub login or Google email, depending on AUTH_PROVIDER. */
 	login: string;
 	name: string;
 	email: string;

@@ -1,5 +1,6 @@
 import OAuthProvider, { type OAuthHelpers } from "@cloudflare/workers-oauth-provider";
-import { GitHubHandler } from "./auth/github-handler";
+import { createAuthHandler } from "./auth/handler";
+import { authProviderFromEnv } from "./auth/providers";
 
 export const MCP_PATH = "/mcp";
 
@@ -19,8 +20,13 @@ export const createOAuthProvider = (apiHandler: ApiHandler, origin: string) =>
 		authorizeEndpoint: "/authorize",
 		clientRegistrationEndpoint: "/register",
 		defaultHandler: {
+			// The login provider comes from the env, which is only known per request.
 			fetch: (req, env, ctx) =>
-				GitHubHandler.fetch(req, env as Env & { OAUTH_PROVIDER: OAuthHelpers }, ctx),
+				createAuthHandler(authProviderFromEnv(env)).fetch(
+					req,
+					env as Env & { OAUTH_PROVIDER: OAuthHelpers },
+					ctx,
+				),
 		} satisfies ExportedHandler<Env>,
 		resourceMetadata: { resource: `${origin}${MCP_PATH}` },
 		tokenEndpoint: "/token",

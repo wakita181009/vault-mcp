@@ -5,11 +5,8 @@ import {
 	redirectResponse,
 } from "../../src/auth/utils";
 
-const formResponse = (fields: Record<string, string>, status = 200): Response =>
-	new Response(new URLSearchParams(fields), {
-		status,
-		headers: { "Content-Type": "application/x-www-form-urlencoded" },
-	});
+const jsonResponse = (fields: Record<string, string>, status = 200): Response =>
+	Response.json(fields, { status });
 
 const tokenArgs = {
 	client_id: "cid",
@@ -77,10 +74,31 @@ describe("fetchUpstreamAuthToken", () => {
 	});
 
 	it("returns the access token on a successful exchange", async () => {
-		vi.stubGlobal("fetch", vi.fn(async () => formResponse({ access_token: "gho_token" })));
+		const fetchMock = vi.fn(async () => jsonResponse({ access_token: "gho_token" }));
+		vi.stubGlobal("fetch", fetchMock);
 		const [token, err] = await fetchUpstreamAuthToken(tokenArgs);
 		expect(token).toBe("gho_token");
 		expect(err).toBeNull();
+	});
+
+	it("posts a standard code grant and asks for a JSON response", async () => {
+		const fetchMock = vi.fn(async () => jsonResponse({ access_token: "gho_token" }));
+		vi.stubGlobal("fetch", fetchMock);
+		await fetchUpstreamAuthToken(tokenArgs);
+		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		expect(url).toBe(tokenArgs.upstream_url);
+		expect(new Headers(init.headers).get("Accept")).toBe("application/json");
+		const body = new URLSearchParams(String(init.body));
+		expect(body.get("grant_type")).toBe("authorization_code");
+		expect(body.get("code")).toBe("the-code");
+		expect(body.get("redirect_uri")).toBe(tokenArgs.redirect_uri);
+	});
+
+	it("returns a 400 response when the body is not JSON", async () => {
+		vi.stubGlobal("fetch", vi.fn(async () => new Response("access_token=x")));
+		const [token, err] = await fetchUpstreamAuthToken(tokenArgs);
+		expect(token).toBeNull();
+		expect(err?.status).toBe(400);
 	});
 
 	it("returns a 500 response when the upstream call is not ok", async () => {
@@ -92,7 +110,7 @@ describe("fetchUpstreamAuthToken", () => {
 	});
 
 	it("returns a 400 response when the access token is missing", async () => {
-		vi.stubGlobal("fetch", vi.fn(async () => formResponse({ scope: "read:user" })));
+		vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ scope: "read:user" })));
 		const [token, err] = await fetchUpstreamAuthToken(tokenArgs);
 		expect(token).toBeNull();
 		expect(err?.status).toBe(400);

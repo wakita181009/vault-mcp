@@ -57,3 +57,44 @@ describe("parseEnv", () => {
 		);
 	});
 });
+
+describe("parseEnv AUTH_PROVIDER", () => {
+	const GOOGLE = {
+		AUTH_PROVIDER: "google",
+		GOOGLE_CLIENT_ID: "gcid",
+		GOOGLE_CLIENT_SECRET: "gsecret",
+		COOKIE_ENCRYPTION_KEY: "0".repeat(64),
+		VAULT_GITHUB_TOKEN: "github_pat_example",
+		VAULT_OWNER: "owner",
+		VAULT_REPO: "repo",
+		VAULT_ALLOWED_GOOGLE_EMAILS: "owner@example.com",
+	};
+
+	it("defaults to github when unset", () => {
+		expect(parse().AUTH_PROVIDER).toBe("github");
+	});
+
+	it("accepts a google deploy without any GitHub OAuth app keys", () => {
+		const config = parseEnv(GOOGLE as unknown as Parameters<typeof parseEnv>[0]);
+		expect(config.AUTH_PROVIDER).toBe("google");
+		expect(config.VAULT_BRANCH).toBe("main");
+	});
+
+	it("requires the Google OAuth app keys when google is selected", () => {
+		const { GOOGLE_CLIENT_SECRET: _omit, ...without } = GOOGLE;
+		expect(() => parseEnv(without as unknown as Parameters<typeof parseEnv>[0])).toThrow(
+			/GOOGLE_CLIENT_SECRET/,
+		);
+	});
+
+	it("requires the Google allowlist when google is selected", () => {
+		const { VAULT_ALLOWED_GOOGLE_EMAILS: _omit, ...without } = GOOGLE;
+		expect(() => parseEnv(without as unknown as Parameters<typeof parseEnv>[0])).toThrow(
+			/VAULT_ALLOWED_GOOGLE_EMAILS/,
+		);
+	});
+
+	it("rejects an unknown provider", () => {
+		expect(() => parse({ AUTH_PROVIDER: "okta" })).toThrow(/AUTH_PROVIDER/);
+	});
+});

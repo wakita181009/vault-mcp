@@ -25,10 +25,8 @@ const MIN_COOKIE_KEY_LENGTH = 32;
 // code-reviewed; override per deploy with a `VAULT_DENIED_PREFIXES` secret.
 const DEFAULT_DENIED_PREFIXES = ".git/,.obsidian/,.claude/";
 
-export const envSchema = z.object({
-	// Secrets — `wrangler secret put` (prod) / `.dev.vars` (local).
-	GITHUB_CLIENT_ID: z.string().min(1),
-	GITHUB_CLIENT_SECRET: z.string().min(1),
+// Keys every deploy needs regardless of which upstream login provider is used.
+const commonShape = {
 	COOKIE_ENCRYPTION_KEY: z
 		.string()
 		.min(MIN_COOKIE_KEY_LENGTH, `too short — generate with \`openssl rand -hex 32\``),
@@ -37,15 +35,41 @@ export const envSchema = z.object({
 	VAULT_GITHUB_TOKEN: z
 		.string()
 		.startsWith("github_pat_", "must be a fine-grained PAT (starts with `github_pat_`)"),
-	// Vault target + access allowlist. Also secrets, not committed vars: this is a
-	// public template, so committing them would leak the private vault and who may use it.
+	// Vault target. Also secrets, not committed vars: this is a public template,
+	// so committing them would leak the private vault.
 	VAULT_OWNER: z.string().min(1),
 	VAULT_REPO: z.string().min(1),
 	VAULT_BRANCH: z.string().min(1).default("main"),
-	VAULT_ALLOWED_GITHUB_LOGINS: z.string(),
 	VAULT_ALLOWED_PREFIXES: z.string().default(""),
 	VAULT_DENIED_PREFIXES: z.string().default(DEFAULT_DENIED_PREFIXES),
+};
+
+// Each login provider brings its own OAuth app credentials and its own
+// allowlist, because the identity it yields differs (GitHub login vs Google
+// email). `AUTH_PROVIDER` picks one; it defaults to GitHub so existing deploys
+// keep working without setting it.
+export const githubAuthSchema = z.object({
+	...commonShape,
+	AUTH_PROVIDER: z.literal("github").default("github"),
+	GITHUB_CLIENT_ID: z.string().min(1),
+	GITHUB_CLIENT_SECRET: z.string().min(1),
+	VAULT_ALLOWED_GITHUB_LOGINS: z.string(),
 });
+
+export const googleAuthSchema = z.object({
+	...commonShape,
+	AUTH_PROVIDER: z.literal("google"),
+	GOOGLE_CLIENT_ID: z.string().min(1),
+	GOOGLE_CLIENT_SECRET: z.string().min(1),
+	VAULT_ALLOWED_GOOGLE_EMAILS: z.string(),
+});
+
+export const envSchema = z.discriminatedUnion("AUTH_PROVIDER", [
+	githubAuthSchema,
+	googleAuthSchema,
+]);
+
+export type AuthProviderName = z.infer<typeof envSchema>["AUTH_PROVIDER"];
 
 /** Validated env config with defaults applied — the return type of `parseEnv`. */
 export type VaultEnvConfig = z.infer<typeof envSchema>;

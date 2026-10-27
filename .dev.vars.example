@@ -1,9 +1,19 @@
 # Local dev secrets for `wrangler dev`. Copy to `.dev.vars` and fill in.
 # `.dev.vars` is gitignored — never commit real values.
 
-# GitHub OAuth App used for LOGIN (gates who may connect to this MCP).
+# Who verifies the user at login: "github" (default) or "google". Each provider
+# needs its own OAuth app secrets and its own allowlist (below).
+# AUTH_PROVIDER=github
+
+# GitHub OAuth App used for LOGIN (AUTH_PROVIDER=github).
 GITHUB_CLIENT_ID=<your github oauth app client id>
 GITHUB_CLIENT_SECRET=<your github oauth app client secret>
+VAULT_ALLOWED_GITHUB_LOGINS=<comma-separated github logins allowed to use the MCP>
+
+# Google OAuth client used for LOGIN (AUTH_PROVIDER=google). Omit when using GitHub.
+# GOOGLE_CLIENT_ID=<your google oauth client id>
+# GOOGLE_CLIENT_SECRET=<your google oauth client secret>
+# VAULT_ALLOWED_GOOGLE_EMAILS=<comma-separated verified google emails allowed to use the MCP>
 
 # `openssl rand -hex 32`
 COOKIE_ENCRYPTION_KEY=<32-byte hex string>
@@ -12,11 +22,10 @@ COOKIE_ENCRYPTION_KEY=<32-byte hex string>
 # Scope: Contents = Read and write, limited to your vault repo only.
 VAULT_GITHUB_TOKEN=<github_pat_...>
 
-# Vault target + access allowlist. Secrets (not wrangler.jsonc vars) because this
-# is a public template — committing them would leak the private vault and its allowlist.
+# Vault target. Secrets (not wrangler.jsonc vars) because this is a public
+# template — committing them would leak the private vault.
 VAULT_OWNER=<github owner/org of the vault repo>
 VAULT_REPO=<vault repo name>
-VAULT_ALLOWED_GITHUB_LOGINS=<comma-separated github logins allowed to use the MCP>
 
 # Optional overrides — omit to use the defaults baked into src/config.ts:
 #   VAULT_BRANCH             -> "main"

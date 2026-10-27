@@ -21,8 +21,11 @@ so `wrangler.jsonc` ships generic (no `vars`).
   must run every guard `read_note` does — `..`/absolute rejection and `VAULT_ALLOWED_PREFIXES` /
   `VAULT_DENIED_PREFIXES` — so a mutation can never reach `.git/`, `.obsidian/`, or agent dirs.
   Preserve this when touching write/delete logic.
-- **The login allowlist gates the whole toolset.** A GitHub login absent from
-  `VAULT_ALLOWED_GITHUB_LOGINS` must get **zero** tools, not a reduced set — see `init` in `index.ts`.
+- **The login allowlist gates the whole toolset.** An identity absent from the configured
+  provider's allowlist (`VAULT_ALLOWED_GITHUB_LOGINS` for `AUTH_PROVIDER=github`,
+  `VAULT_ALLOWED_GOOGLE_EMAILS` for `google`) must get **zero** tools, not a reduced set — see
+  `guard.ts`. Login providers live in `src/auth/providers/`; the flow in `auth/handler.ts` is
+  provider-agnostic. A Google identity must have a verified email before it can match.
 - **`VAULT_GITHUB_TOKEN` stays single-repo scoped.** It needs Contents: Read *and Write* (Write
   covers both `write_note` and `delete_note`), but only on the vault repo. Never widen it beyond
   that one repo or swap in a broader token.

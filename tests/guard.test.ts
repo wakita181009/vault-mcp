@@ -31,3 +31,27 @@ describe("createGuardedApiHandler", () => {
 		expect(inner.fetch).not.toHaveBeenCalled();
 	});
 });
+
+describe("createGuardedApiHandler with the Google provider", () => {
+	const googleEnv = {
+		AUTH_PROVIDER: "google",
+		VAULT_ALLOWED_GOOGLE_EMAILS: "Alice@Example.com",
+		VAULT_ALLOWED_GITHUB_LOGINS: "carol",
+	} as unknown as Env;
+
+	it("matches emails case-insensitively against the Google allowlist", async () => {
+		const res = await handler.fetch?.(request, googleEnv, ctxWith("alice@example.com"));
+		expect(res?.status).toBe(200);
+	});
+
+	it("ignores the GitHub allowlist when Google is the provider", async () => {
+		const res = await handler.fetch?.(request, googleEnv, ctxWith("carol"));
+		expect(res?.status).toBe(403);
+		expect(inner.fetch).not.toHaveBeenCalled();
+	});
+
+	it("throws on an unknown provider instead of falling back to GitHub", () => {
+		const badEnv = { AUTH_PROVIDER: "okta" } as unknown as Env;
+		expect(() => handler.fetch?.(request, badEnv, ctxWith("alice"))).toThrow(/AUTH_PROVIDER/);
+	});
+});
