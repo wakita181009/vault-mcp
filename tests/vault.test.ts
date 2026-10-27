@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { isPathVisible, normalizePath, parseList, type VaultConfig } from "../src/vault";
+import {
+	isPathVisible,
+	normalizePath,
+	parseList,
+	type VaultConfig,
+	VaultClient,
+	VaultError,
+	vaultClientFromEnv,
+} from "../src/vault";
+
+const WORKER_ENV = {
+	GITHUB_CLIENT_ID: "client-id",
+	GITHUB_CLIENT_SECRET: "client-secret",
+	COOKIE_ENCRYPTION_KEY: "0".repeat(64),
+	VAULT_GITHUB_TOKEN: "github_pat_example",
+	VAULT_OWNER: "owner",
+	VAULT_REPO: "repo",
+	VAULT_ALLOWED_GITHUB_LOGINS: "owner",
+} as unknown as Env;
 
 const baseConfig: VaultConfig = {
 	allowedPrefixes: [],
@@ -96,5 +114,28 @@ describe("parseList", () => {
 	it("splits on commas, trimming and dropping empty entries", () => {
 		expect(parseList("a, b ,c")).toEqual(["a", "b", "c"]);
 		expect(parseList("a,,b, ,c")).toEqual(["a", "b", "c"]);
+	});
+});
+
+describe("vaultClientFromEnv", () => {
+	it("builds a VaultClient whose path policy comes from the env defaults", async () => {
+		const client = vaultClientFromEnv(WORKER_ENV);
+		expect(client).toBeInstanceOf(VaultClient);
+		// `.git/` is denied by default, so the guard rejects before any GitHub call.
+		await expect(client.readNote(".git/config")).rejects.toBeInstanceOf(VaultError);
+	});
+
+	it("honours explicit prefix overrides", async () => {
+		const client = vaultClientFromEnv({
+			...WORKER_ENV,
+			VAULT_ALLOWED_PREFIXES: "notes/",
+			VAULT_DENIED_PREFIXES: "",
+		} as Env);
+		await expect(client.readNote("other/a.md")).rejects.toBeInstanceOf(VaultError);
+	});
+
+	it("fails fast on a misconfigured env", () => {
+		const { VAULT_REPO: _omit, ...broken } = WORKER_ENV as unknown as Record<string, string>;
+		expect(() => vaultClientFromEnv(broken as unknown as Env)).toThrow(/Invalid Worker environment/);
 	});
 });
