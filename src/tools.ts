@@ -88,7 +88,7 @@ export async function searchNotesHandler(
 	}
 }
 
-/** Whether a GitHub login is present and on the configured allowlist. */
+/** Whether a login identity is present and on the configured allowlist. */
 export function isLoginAllowed(login: string | undefined, allowedLogins: string[]): boolean {
 	return login !== undefined && allowedLogins.includes(login);
 }

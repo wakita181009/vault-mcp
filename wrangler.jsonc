@@ -12,13 +12,17 @@
 	],
 	/**
    * Secrets are NOT stored here. Set them with `wrangler secret put`:
-   *   pnpm exec wrangler secret put GITHUB_CLIENT_ID      # OAuth app (who may log in)
+   *   pnpm exec wrangler secret put AUTH_PROVIDER        # optional: "github" (default) or "google"
+   *   pnpm exec wrangler secret put GITHUB_CLIENT_ID      # OAuth app (who may log in; github provider)
    *   pnpm exec wrangler secret put GITHUB_CLIENT_SECRET  # OAuth app
+   *   pnpm exec wrangler secret put GOOGLE_CLIENT_ID      # OAuth client (google provider only)
+   *   pnpm exec wrangler secret put GOOGLE_CLIENT_SECRET  # OAuth client (google provider only)
    *   pnpm exec wrangler secret put COOKIE_ENCRYPTION_KEY # `openssl rand -hex 32`
    *   pnpm exec wrangler secret put VAULT_GITHUB_TOKEN    # fine-grained PAT, Contents R/W on the vault repo
    *   pnpm exec wrangler secret put VAULT_OWNER           # GitHub owner of the vault repo
    *   pnpm exec wrangler secret put VAULT_REPO            # vault repo name
-   *   pnpm exec wrangler secret put VAULT_ALLOWED_GITHUB_LOGINS # comma-separated allowed logins
+   *   pnpm exec wrangler secret put VAULT_ALLOWED_GITHUB_LOGINS # allowed GitHub logins (github provider)
+   *   pnpm exec wrangler secret put VAULT_ALLOWED_GOOGLE_EMAILS # allowed Google emails (google provider)
    *
    * For local dev, put the same keys in `.dev.vars` (see .dev.vars.example).
    */

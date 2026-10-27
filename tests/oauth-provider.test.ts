@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const github = vi.hoisted(() => ({ fetch: vi.fn(async () => new Response("github", { status: 200 })) }));
-vi.mock("../src/auth/github-handler", () => ({ GitHubHandler: github }));
+vi.mock("../src/auth/handler", () => ({ createAuthHandler: vi.fn(() => github) }));
 
 import { createOAuthProvider } from "../src/oauth-provider";
 
@@ -24,7 +24,7 @@ const protectedResourceMetadata = async (origin: string) => {
 beforeEach(() => vi.clearAllMocks());
 
 describe("OAuthProvider wiring", () => {
-	it("hands non-OAuth routes to the GitHub login handler with the provider helpers in env", async () => {
+	it("hands non-OAuth routes to the login handler with the provider helpers in env", async () => {
 		const req = new Request("https://mcp.example.com/authorize?client_id=c1");
 		const res = await worker.fetch(req);
 

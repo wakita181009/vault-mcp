@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { env as cfEnv } from "../stubs/cloudflare-workers";
 
 const octo = vi.hoisted(() => {
 	const getAuthenticated = vi.fn();
@@ -12,7 +11,9 @@ const octo = vi.hoisted(() => {
 });
 vi.mock("octokit", () => ({ Octokit: octo.Octokit }));
 
-import { GitHubHandler } from "../../src/auth/github-handler";
+import { createAuthHandler } from "../../src/auth/handler";
+import { githubProvider } from "../../src/auth/providers/github";
+import { googleProvider } from "../../src/auth/providers/google";
 import {
 	addApprovedClient,
 	bindStateToSession,
@@ -63,14 +64,13 @@ function appEnv(): Record<string, unknown> {
 	};
 }
 
-// The Hono handler reads these two secrets from the `cloudflare:workers` env.
+const GitHubHandler = createAuthHandler(githubProvider);
 const request = (path: string, init?: RequestInit) =>
 	GitHubHandler.request(path, init, appEnv() as never);
 
 beforeEach(() => {
 	vi.clearAllMocks();
 	kv = makeKV();
-	Object.assign(cfEnv, { GITHUB_CLIENT_ID: "cid", COOKIE_ENCRYPTION_KEY: SECRET });
 	oauthProvider = {
 		parseAuthRequest: vi.fn(async () => ({ ...reqInfo })),
 		lookupClient: vi.fn(async () => ({
@@ -184,9 +184,7 @@ describe("GET /callback", () => {
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(async () =>
-				new Response(new URLSearchParams({ access_token: "gho_token" }), {
-					headers: { "Content-Type": "application/x-www-form-urlencoded" },
-				}),
+				Response.json({ access_token: "gho_token" }),
 			),
 		);
 		octo.getAuthenticated.mockResolvedValue({
@@ -219,5 +217,81 @@ describe("GET /callback", () => {
 		const res = await callback(`state=${stateToken}&code=the-code`, consented);
 		expect(res.status).toBe(500);
 		vi.unstubAllGlobals();
+	});
+});
+
+describe("GET /callback with the Google provider", () => {
+	const GoogleHandler = createAuthHandler(googleProvider);
+	const googleEnv = () => ({
+		OAUTH_PROVIDER: oauthProvider,
+		OAUTH_KV: kv,
+		AUTH_PROVIDER: "google",
+		GOOGLE_CLIENT_ID: "gcid",
+		GOOGLE_CLIENT_SECRET: "gsecret",
+		COOKIE_ENCRYPTION_KEY: SECRET,
+	});
+
+	const seedState = async () => {
+		const { stateToken } = await createOAuthState(reqInfo as never, kv as never);
+		const { setCookie } = await bindStateToSession(stateToken);
+		return { stateToken, consented: setCookie.split(";")[0].split("=").slice(1).join("=") };
+	};
+
+	const callback = async (userinfo: Record<string, unknown>) => {
+		const fetchMock = vi.fn(async (url: string | URL | Request) =>
+			String(url).includes("userinfo")
+				? Response.json(userinfo)
+				: Response.json({ access_token: "ya29.token" }),
+		);
+		vi.stubGlobal("fetch", fetchMock);
+		const { stateToken, consented } = await seedState();
+		const res = await GoogleHandler.request(
+			`https://mcp.example/callback?state=${stateToken}&code=the-code`,
+			{ headers: { Cookie: `__Host-CONSENTED_STATE=${consented}` } },
+			googleEnv() as never,
+		);
+		vi.unstubAllGlobals();
+		return { res, fetchMock };
+	};
+
+	it("redirects to Google with the openid scope when the client is already approved", async () => {
+		const approvedCookie = await addApprovedClient(
+			new Request("https://mcp.example/"),
+			"c1",
+			SECRET,
+		);
+		const res = await GoogleHandler.request(
+			"https://mcp.example/authorize",
+			{ headers: { Cookie: approvedCookie.split(";")[0] } },
+			googleEnv() as never,
+		);
+		expect(res.status).toBe(302);
+		const location = new URL(res.headers.get("Location") ?? "");
+		expect(location.origin + location.pathname).toBe("https://accounts.google.com/o/oauth2/v2/auth");
+		expect(location.searchParams.get("client_id")).toBe("gcid");
+		expect(location.searchParams.get("scope")).toBe("openid email profile");
+	});
+
+	it("uses the lowercased verified email as the login identity", async () => {
+		const { res, fetchMock } = await callback({
+			email: "Alice@Example.com",
+			email_verified: true,
+			name: "Alice",
+		});
+		expect(res.status).toBe(302);
+		expect(fetchMock.mock.calls[0][0]).toBe("https://oauth2.googleapis.com/token");
+		expect(oauthProvider.completeAuthorization).toHaveBeenCalledWith(
+			expect.objectContaining({
+				userId: "alice@example.com",
+				props: expect.objectContaining({ login: "alice@example.com", email: "alice@example.com" }),
+			}),
+		);
+	});
+
+	it("403s when the Google email is not verified", async () => {
+		const { res } = await callback({ email: "alice@example.com", email_verified: false });
+		expect(res.status).toBe(403);
+		expect(await res.text()).toContain("not verified");
+		expect(oauthProvider.completeAuthorization).not.toHaveBeenCalled();
 	});
 });

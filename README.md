@@ -16,8 +16,9 @@ ships generic.
 
 ## What it does
 
-- **Auth:** GitHub OAuth via [`@cloudflare/workers-oauth-provider`](https://github.com/cloudflare/workers-oauth-provider).
-  Users sign in with GitHub; only logins in `VAULT_ALLOWED_GITHUB_LOGINS` get any tools at all.
+- **Auth:** OAuth via [`@cloudflare/workers-oauth-provider`](https://github.com/cloudflare/workers-oauth-provider),
+  delegating sign-in to **GitHub** (default) or **Google** (`AUTH_PROVIDER=google`). Only identities on
+  the provider's allowlist (`VAULT_ALLOWED_GITHUB_LOGINS` / `VAULT_ALLOWED_GOOGLE_EMAILS`) get any tools at all.
 - **Accesses the vault** through the GitHub API using a **separate fine-grained PAT**
   (`VAULT_GITHUB_TOKEN`) scoped to Contents Read + Write on the one vault repo.
 - **Transport:** Streamable HTTP at `/mcp`.
@@ -32,16 +33,29 @@ ships generic.
 | `delete_note` | Delete an existing note by path (markdown paths only; recorded as a revertable git commit). |
 | `search_notes` | Content search (GitHub code search, indexed) + filename search, merged. |
 
-## Two GitHub tokens, two jobs
+## Two credentials, two jobs
 
-| Purpose | Token | Scope |
+| Purpose | Credential | Scope |
 | --- | --- | --- |
-| **Who may log in** | GitHub **OAuth App** (`GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`) | `read:user` only |
+| **Who may log in** | GitHub **OAuth App** (`GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`) or Google **OAuth client** (`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`) | `read:user` / `openid email profile` only |
 | **What the server accesses** | **fine-grained PAT** (`VAULT_GITHUB_TOKEN`) | Contents: Read & Write, limited to your vault repo |
 
 Keeping them separate means logging in never grants repo write via the OAuth app, and the
 vault PAT is scoped to exactly one repo. **Keep the PAT scoped to that single repo** — this
 server needs read and write on the vault, but nothing beyond it.
+
+### Login provider
+
+`AUTH_PROVIDER` selects who verifies the user; it defaults to `github`. Each provider has
+its own OAuth app secrets and its own allowlist, because the identity it yields differs:
+
+| `AUTH_PROVIDER` | OAuth app secrets | Allowlist (comma-separated) | Identity matched |
+| --- | --- | --- | --- |
+| `github` (default) | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | `VAULT_ALLOWED_GITHUB_LOGINS` | GitHub login |
+| `google` | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | `VAULT_ALLOWED_GOOGLE_EMAILS` | verified Google email (case-insensitive) |
+
+Only the selected provider's keys are required. Google accounts whose email is not verified
+are rejected before the allowlist is consulted.
 
 ## Access scope
 
@@ -67,7 +81,7 @@ cd vault-mcp
 ```
 
 That clones the project and installs dependencies — but not the one-time setup:
-you still create the KV namespace, GitHub OAuth app, and fine-grained PAT
+you still create the KV namespace, the OAuth app (GitHub or Google), and the fine-grained PAT
 (Contents: Read and write), and set the secrets. Continue with [Setup](#setup) from **step 2** (step 1 is done for
 you). Cloning the repo directly works too; then start from step 0.
 
@@ -83,7 +97,7 @@ pnpm exec wrangler login    # Cloudflare auth
 ### 1. Point it at your vault
 
 Your vault target (`VAULT_OWNER` / `VAULT_REPO`) and login allowlist
-(`VAULT_ALLOWED_GITHUB_LOGINS`) are **secrets**, set in step 5 — you don't edit
+(`VAULT_ALLOWED_GITHUB_LOGINS` or `VAULT_ALLOWED_GOOGLE_EMAILS`) are **secrets**, set in step 5 — you don't edit
 `wrangler.jsonc` to point it at your repo. The committed `wrangler.jsonc` ships
 generic; its only per-deploy value is the KV namespace id (step 2). Everything
 else defaults in `src/config.ts` and is optional — override any of these per deploy
@@ -109,21 +123,26 @@ GitHub → Settings → Developer settings → **Fine-grained tokens** → Gener
 
 Save the token for `VAULT_GITHUB_TOKEN` below.
 
-### 4. Create the GitHub OAuth App (login)
+### 4. Create the OAuth app for login
 
-You need **two** apps (or reuse one with a second callback): local + production.
+Pick one provider (see [Login provider](#login-provider)). Either way you need **two** apps
+(or one with a second callback): local + production. The callback URL is `<origin>/callback`:
 
-GitHub → Settings → Developer settings → **OAuth Apps** → New:
+- **Local:** `http://localhost:8788/callback`
+- **Prod:** `https://vault-mcp.<subdomain>.workers.dev/callback`
 
-- **Local:** Homepage `http://localhost:8788`, Callback `http://localhost:8788/callback`
-- **Prod:** Homepage `https://vault-mcp.<subdomain>.workers.dev`, Callback `https://vault-mcp.<subdomain>.workers.dev/callback`
+**GitHub (default):** GitHub → Settings → Developer settings → **OAuth Apps** → New. Note the
+Client ID and generate a Client Secret (`GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`).
 
-Note each app's Client ID and generate a Client Secret.
+**Google:** Google Cloud Console → APIs & Services → **Credentials** → Create OAuth client ID
+(type: Web application) with the callback above as an authorized redirect URI; configure the
+OAuth consent screen if prompted. Note the Client ID and Client Secret
+(`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`) and set `AUTH_PROVIDER=google`.
 
 ### 5a. Run locally
 
 ```bash
-cp .dev.vars.example .dev.vars    # LOCAL OAuth app, PAT, vault owner/repo/logins
+cp .dev.vars.example .dev.vars    # LOCAL OAuth app, PAT, vault owner/repo, allowlist
 openssl rand -hex 32              # value for COOKIE_ENCRYPTION_KEY
 pnpm dev                          # http://localhost:8788/mcp
 ```
@@ -132,20 +151,29 @@ Test with the MCP inspector:
 
 ```bash
 pnpm dlx @modelcontextprotocol/inspector@latest
-# connect to http://localhost:8788/mcp, complete the GitHub login
+# connect to http://localhost:8788/mcp, complete the login
 ```
 
 ### 5b. Deploy to production
 
 ```bash
-pnpm exec wrangler secret put GITHUB_CLIENT_ID            # PROD OAuth app
+pnpm exec wrangler secret put GITHUB_CLIENT_ID            # PROD OAuth app (GitHub login)
 pnpm exec wrangler secret put GITHUB_CLIENT_SECRET
+pnpm exec wrangler secret put VAULT_ALLOWED_GITHUB_LOGINS # comma-separated allowed GitHub logins
 pnpm exec wrangler secret put COOKIE_ENCRYPTION_KEY       # openssl rand -hex 32
 pnpm exec wrangler secret put VAULT_GITHUB_TOKEN          # fine-grained PAT, Contents R/W on the vault repo
 pnpm exec wrangler secret put VAULT_OWNER                 # GitHub owner of the vault repo
 pnpm exec wrangler secret put VAULT_REPO                  # vault repo name
-pnpm exec wrangler secret put VAULT_ALLOWED_GITHUB_LOGINS # comma-separated allowed logins
 pnpm run deploy
+```
+
+For Google login, replace the first three secrets with:
+
+```bash
+pnpm exec wrangler secret put AUTH_PROVIDER               # google
+pnpm exec wrangler secret put GOOGLE_CLIENT_ID            # PROD OAuth client (Google login)
+pnpm exec wrangler secret put GOOGLE_CLIENT_SECRET
+pnpm exec wrangler secret put VAULT_ALLOWED_GOOGLE_EMAILS # comma-separated allowed Google emails
 ```
 
 Endpoint: `https://vault-mcp.<subdomain>.workers.dev/mcp`
@@ -195,7 +223,7 @@ src/
 ├── oauth-provider.ts          # OAuthProvider built per request (canonical resource = origin + /mcp)
 ├── schemas.ts                 # MCP tool input schemas (compiled at build time by zod-aot)
 ├── tools.ts                   # MCP tool handlers (list/read/write/delete/search) + result & allowlist helpers
-├── guard.ts                   # login-allowlist gate wrapping the MCP API handler
+├── guard.ts                   # login-allowlist gate wrapping the MCP API handler (per AUTH_PROVIDER)
 ├── vault.ts                   # Backend-agnostic policy layer: list/read/write/delete/search + path guards
 ├── storage/
 │   ├── types.ts               # VaultStorage interface every backend implements (+ VaultError)
@@ -203,7 +231,8 @@ src/
 ├── config.ts                  # env schema + defaults; parseEnv validates at startup
 ├── env.d.ts                   # secret bindings type augmentation
 └── auth/
-    ├── github-handler.ts      # GitHub OAuth login flow (Hono)
+    ├── handler.ts             # provider-agnostic OAuth login flow (Hono)
+    ├── providers/             # upstream identity providers: github.ts, google.ts (+ types, selector)
     ├── approval-dialog.ts     # OAuth approval dialog + HTML sanitization
     ├── workers-oauth-utils.ts # OAuth state / CSRF / approved-clients cookie
     └── utils.ts               # upstream OAuth authorize URL + token exchange

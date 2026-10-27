@@ -1,6 +1,6 @@
+import { authProviderFromEnv } from "./auth/providers";
 import type { Props } from "./auth/utils";
 import { isLoginAllowed } from "./tools";
-import { parseList } from "./vault";
 
 /** A minimal fetch handler: the gate's own shape and the inner one it wraps. */
 type ApiHandler = {
@@ -9,16 +9,17 @@ type ApiHandler = {
 
 /**
  * Wraps an API handler with the login allowlist gate. OAuthProvider sets
- * `ctx.props` before this runs, so a login absent from
- * `VAULT_ALLOWED_GITHUB_LOGINS` is rejected before the wrapped handler (and the
- * VaultMCP Durable Object it creates) is ever reached. Only the allowlist is
- * read here; the rest of the env is validated a step later during DO init.
+ * `ctx.props` before this runs, so an identity absent from the configured
+ * provider's allowlist (`VAULT_ALLOWED_GITHUB_LOGINS` or
+ * `VAULT_ALLOWED_GOOGLE_EMAILS`) is rejected before the wrapped handler (and
+ * the VaultMCP Durable Object it creates) is ever reached. Only the allowlist
+ * is read here; the rest of the env is validated a step later during DO init.
  */
 export function createGuardedApiHandler(inner: ApiHandler): ApiHandler {
 	return {
 		fetch: (req, env, ctx) => {
 			const login = (ctx as ExecutionContext & { props?: Props }).props?.login;
-			if (!isLoginAllowed(login, parseList(env.VAULT_ALLOWED_GITHUB_LOGINS))) {
+			if (!isLoginAllowed(login, authProviderFromEnv(env).allowedLogins(env))) {
 				return Promise.resolve(new Response("Forbidden", { status: 403 }));
 			}
 			return inner.fetch(req, env, ctx);
