@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const github = vi.hoisted(() => ({ fetch: vi.fn(async () => new Response("github", { status: 200 })) }));
+vi.mock("../src/auth/github-handler", () => ({ GitHubHandler: github }));
+
 import { createOAuthProvider } from "../src/oauth-provider";
 
 // Metadata routes never touch KV, so an empty env is enough to exercise the
@@ -17,7 +21,20 @@ const protectedResourceMetadata = async (origin: string) => {
 	return (await res.json()) as { resource: string; authorization_servers: string[] };
 };
 
+beforeEach(() => vi.clearAllMocks());
+
 describe("OAuthProvider wiring", () => {
+	it("hands non-OAuth routes to the GitHub login handler with the provider helpers in env", async () => {
+		const req = new Request("https://mcp.example.com/authorize?client_id=c1");
+		const res = await worker.fetch(req);
+
+		expect(res.status).toBe(200);
+		expect(await res.text()).toBe("github");
+		const [passedReq, passedEnv] = github.fetch.mock.calls[0] as unknown as [Request, { OAUTH_PROVIDER?: unknown }];
+		expect(passedReq.url).toBe(req.url);
+		expect(passedEnv.OAUTH_PROVIDER).toBeDefined();
+	});
+
 	it("advertises the request origin plus /mcp as the canonical resource", async () => {
 		const body = await protectedResourceMetadata("https://vault-mcp.example.workers.dev");
 		expect(body.resource).toBe("https://vault-mcp.example.workers.dev/mcp");
