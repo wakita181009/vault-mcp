@@ -191,7 +191,8 @@ pnpm exec zod-aot check src/schemas.ts --auto-discover
 
 ```
 src/
-├── index.ts                   # OAuthProvider + VaultMCP (McpAgent) wiring; registers the tools
+├── index.ts                   # VaultMCP (McpAgent) + Worker entry; registers the tools
+├── oauth-provider.ts          # OAuthProvider built per request (canonical resource = origin + /mcp)
 ├── schemas.ts                 # MCP tool input schemas (compiled at build time by zod-aot)
 ├── tools.ts                   # MCP tool handlers (list/read/write/delete/search) + result & allowlist helpers
 ├── guard.ts                   # login-allowlist gate wrapping the MCP API handler
