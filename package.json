@@ -32,7 +32,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.6.2",
-		"@cloudflare/vite-plugin": "^1.53.1",
+		"@cloudflare/vite-plugin": "^1.65.0",
 		"@vitest/coverage-v8": "4.1.10",
 		"husky": "^9.1.7",
 		"typescript": "7.0.2",
