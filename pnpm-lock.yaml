@@ -58,8 +58,8 @@ importers:
         specifier: ^4.152.0
         version: 4.152.0
       zod-aot:
-        specifier: ^0.21.3
-        version: 0.21.3(esbuild@0.28.2)(rolldown@1.2.19)(vite@8.3.8(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))(zod@4.6.7)
+        specifier: ^0.21.7
+        version: 0.21.7(esbuild@0.28.2)(rolldown@1.2.19)(vite@8.3.8(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))(zod@4.6.7)
 
 packages:
 
@@ -947,8 +947,8 @@ packages:
       vite:
         optional: true
 
-  '@rolldown/pluginutils@1.1.0':
-    resolution: {integrity: sha512-K+NU2HDCEem4sClgHH4ZZXwdJeNFkJo+hRk479DIwdIviAPN2hFJH1KHHwg8CxHQXvi0M5XY4deTXINfIiSG6w==}
+  '@rolldown/pluginutils@1.1.1':
+    resolution: {integrity: sha512-glFIJDvLNDtJhT9qrMFWLPbvS+skxgt4L0K8Ei2YtnhPysAJnsI7nyxSJxKj4ADeKX0OLjC4ntRkwpLOoS3rwA==}
 
   '@sindresorhus/is@7.2.0':
     resolution: {integrity: sha512-P1Cz1dWaFfR4IR+U13mqqiGsLFf1KbayybWwdd2vfctdV6hDpUkgCY0nKOLLTMSoRd/jJNjtbqzf13K8DCCXQw==}
@@ -2146,8 +2146,8 @@ packages:
   youch@4.1.0-beta.10:
     resolution: {integrity: sha512-rLfVLB4FgQneDr0dv1oddCVZmKjcJ6yX6mS4pU82Mq/Dt9a3cLZQ62pDBL4AUO+uVrCvtWz3ZFUL2HFAFJ/BXQ==}
 
-  zod-aot@0.21.3:
-    resolution: {integrity: sha512-+uxiGYHqKn0h5kLBz9gR6CU46xqMekseITxWm1pUIqbZdqOzrElgv/9Lp84pHOR+vIcGBhUaf9vlbz5Bs1XxFA==}
+  zod-aot@0.21.7:
+    resolution: {integrity: sha512-4hsdj2SzfLx5411MSBuyWcE8ypdOwzq0xoZX2nTtzqYObibXhgx6Zhj+5lcFTtrWltyIoJdhVb3FFFwvQtjhLw==}
     hasBin: true
     peerDependencies:
       zod: ^4.0.0
@@ -2912,7 +2912,7 @@ snapshots:
       '@babel/runtime': 7.29.7
       vite: 8.3.8(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0)
 
-  '@rolldown/pluginutils@1.1.0': {}
+  '@rolldown/pluginutils@1.1.1': {}
 
   '@sindresorhus/is@7.2.0': {}
 
@@ -3635,7 +3635,7 @@ snapshots:
   rolldown@1.2.19:
     dependencies:
       '@oxc-project/types': 0.156.0
-      '@rolldown/pluginutils': 1.1.0
+      '@rolldown/pluginutils': 1.1.1
     optionalDependencies:
       '@rolldown/binding-android-arm-eabi': 1.2.19
       '@rolldown/binding-android-arm64': 1.2.19
@@ -3843,7 +3843,7 @@ snapshots:
   unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.19)(vite@8.3.8(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0)):
     dependencies:
       '@jridgewell/remapping': 2.3.5
-      '@rolldown/pluginutils': 1.1.0
+      '@rolldown/pluginutils': 1.1.1
       picomatch: 4.0.7
       webpack-virtual-modules: 0.6.2
     optionalDependencies:
@@ -3956,7 +3956,7 @@ snapshots:
       cookie: 1.1.1
       youch-core: 0.3.3
 
-  zod-aot@0.21.3(esbuild@0.28.2)(rolldown@1.2.19)(vite@8.3.8(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))(zod@4.6.7):
+  zod-aot@0.21.7(esbuild@0.28.2)(rolldown@1.2.19)(vite@8.3.8(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))(zod@4.6.7):
     dependencies:
       acorn: 8.19.0
       get-tsconfig: 4.14.3
