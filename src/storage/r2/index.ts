@@ -1,4 +1,4 @@
-import { type ContentMatch, type FileEntry, VaultError, type VaultStorage } from "./types";
+import { type ContentMatch, type FileEntry, VaultError, type VaultStorage } from "../types";
 
 /**
  * Cloudflare R2 backend. Object keys are vault-relative paths at the bucket
@@ -135,4 +135,15 @@ export function findFragments(text: string, pattern: RegExp): string[] {
 
 function escapeRegExp(text: string): string {
 	return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function r2StorageFromEnv(env: Pick<Env, "VAULT_BUCKET">): R2Storage {
+	// Bindings are not strings, so `parseEnv` cannot see them; check here so a
+	// missing `r2_buckets` entry fails as loudly as a missing secret.
+	if (!env.VAULT_BUCKET) {
+		throw new Error(
+			"Invalid Worker environment:\n  - VAULT_BUCKET: R2 binding is required when VAULT_STORAGE=r2",
+		);
+	}
+	return new R2Storage(env.VAULT_BUCKET);
 }

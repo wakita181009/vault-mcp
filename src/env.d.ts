@@ -1,17 +1,16 @@
 import type { z } from "zod";
-import type {
-	AuthProviderName,
-	commonEnvSchema,
-	githubAuthSchema,
-	githubStorageSchema,
-	googleAuthSchema,
-	oidcAuthSchema,
-	StorageBackendName,
-} from "./config";
+import type { githubAuthSchema } from "./auth/providers/github/schema";
+import type { googleAuthSchema } from "./auth/providers/google/schema";
+import type { oidcAuthSchema } from "./auth/providers/oidc/schema";
+import type { AuthProviderName } from "./auth/providers/schema";
+import type { commonEnvSchema } from "./config";
+import type { githubStorageSchema } from "./storage/github/schema";
+import type { StorageBackendName } from "./storage/schema";
 
 /**
  * The raw Worker env — exactly the keys `parseEnv` reads, derived from the zod
- * schemas in `src/config.ts` so there is no second hand-maintained key list.
+ * schemas in `src/config.ts`, `src/auth/providers/`, and `src/storage/` so
+ * there is no second hand-maintained key list.
  * `z.input` keeps the optional overrides (VAULT_BRANCH etc.) optional here; they
  * are absent until set, and `parseEnv` applies their defaults.
  *
@@ -29,9 +28,7 @@ import type {
  * Both are absent from the `wrangler types` output, so we augment them here.
  */
 type CommonEnv = z.input<typeof commonEnvSchema>;
-type ProviderKeys<Schema extends z.ZodTypeAny> = Partial<
-	Omit<z.input<Schema>, keyof CommonEnv | "AUTH_PROVIDER">
->;
+type ProviderKeys<Schema extends z.ZodTypeAny> = Partial<Omit<z.input<Schema>, "AUTH_PROVIDER">>;
 type VaultEnv = CommonEnv & { AUTH_PROVIDER?: AuthProviderName } & ProviderKeys<
 		typeof githubAuthSchema
 	> &

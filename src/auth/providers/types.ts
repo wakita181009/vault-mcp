@@ -1,4 +1,4 @@
-import type { AuthProviderName } from "../../config";
+import type { AuthProviderName } from "./schema";
 
 /**
  * An upstream identity provider the login flow delegates to. The flow itself
