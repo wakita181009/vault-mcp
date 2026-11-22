@@ -17,10 +17,10 @@ so `wrangler.jsonc` ships generic (no `vars`).
 - **Policy lives in `vault.ts`, never in a backend.** Storage backends (`src/storage/`) implement
   `VaultStorage` and only move bytes. All guards run in `VaultClient` before a path reaches a
   backend, so a new backend cannot weaken them. Add backends by implementing the interface, giving it a zod-only
-  `<name>.schema.ts` added to `storageEnvSchema` (`src/storage/schema.ts`), and wiring it in
+  `src/storage/<name>/schema.ts` added to `storageEnvSchema` (`src/storage/schema.ts`), and wiring it in
   `storageFromEnv` (`src/storage/index.ts`). Backend- and provider-specific env keys live under
   `src/storage/` and `src/auth/providers/`; `src/config.ts` keeps only the common keys and composes
-  the layers in `parseEnv`. Keep `*.schema.ts` importing only `zod` — `config.ts` imports them, and
+  the layers in `parseEnv`. Keep each `schema.ts` importing only `zod` — `config.ts` imports them, and
   a runtime import there (e.g. `vault.ts`) would form an import cycle.
   The `isCandidate` argument to `searchContent` is only a pruning hint; `VaultClient` must keep
   re-filtering every hit.

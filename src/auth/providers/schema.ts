@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { githubAuthSchema } from "./github.schema";
-import { googleAuthSchema } from "./google.schema";
+import { githubAuthSchema } from "./github/schema";
+import { googleAuthSchema } from "./google/schema";
 import { oidcAuthSchema } from "./oidc/schema";
 
 // Each login provider brings its own OAuth app credentials and its own

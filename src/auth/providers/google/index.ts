@@ -1,5 +1,5 @@
-import { parseList } from "../../vault";
-import { createOidcProvider } from "./oidc";
+import { parseList } from "../../../vault";
+import { createOidcProvider } from "../oidc";
 
 // Endpoints from https://accounts.google.com/.well-known/openid-configuration,
 // pinned here so a Google login never depends on a live discovery fetch.

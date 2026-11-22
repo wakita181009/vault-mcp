@@ -1,4 +1,4 @@
-import { type ContentMatch, type FileEntry, VaultError, type VaultStorage } from "./types";
+import { type ContentMatch, type FileEntry, VaultError, type VaultStorage } from "../types";
 
 /**
  * Cloudflare R2 backend. Object keys are vault-relative paths at the bucket

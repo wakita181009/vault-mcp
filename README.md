@@ -292,10 +292,8 @@ src/
 │   ├── index.ts               # storageFromEnv: picks the backend from VAULT_STORAGE
 │   ├── schema.ts              # storageEnvSchema: VAULT_STORAGE union of the backend schemas
 │   ├── types.ts               # VaultStorage interface every backend implements (+ VaultError)
-│   ├── github.ts              # GitHub API backend (Octokit)
-│   ├── github.schema.ts       # GitHub backend env keys
-│   ├── r2.ts                  # Cloudflare R2 backend (VAULT_BUCKET binding)
-│   └── r2.schema.ts           # R2 backend env keys
+│   ├── github/                # GitHub API backend (Octokit): index.ts + schema.ts (env keys)
+│   └── r2/                    # Cloudflare R2 backend (VAULT_BUCKET binding): index.ts + schema.ts
 ├── config.ts                  # common env schema + defaults; parseEnv composes auth + storage
 ├── env.d.ts                   # secret bindings type augmentation
 └── auth/
@@ -307,14 +305,14 @@ src/
     └── providers/             # upstream identity providers (selector in index.ts)
         ├── types.ts           # UpstreamProvider interface
         ├── schema.ts          # authEnvSchema: AUTH_PROVIDER union of the provider schemas
-        ├── github.ts / github.schema.ts
-        ├── google.ts / google.schema.ts  # preset of the OIDC factory with pinned endpoints
+        ├── github/            # index.ts + schema.ts (env keys)
+        ├── google/            # preset of the OIDC factory with pinned endpoints; index.ts + schema.ts
         └── oidc/              # generic OIDC: factory + provider, discovery, fetch options, schema
 ```
 
 Tests live in `tests/` (Vitest), mirroring the `src/` layout.
 
-To add another data source, implement `VaultStorage` from `src/storage/types.ts`, add a zod-only `<name>.schema.ts` to
+To add another data source, implement `VaultStorage` from `src/storage/types.ts`, add a zod-only `src/storage/<name>/schema.ts` to
 `storageEnvSchema` (`src/storage/schema.ts`), and construct it in `storageFromEnv` (`src/storage/index.ts`). Backends only move bytes; path policy stays in `VaultClient`.
 
 Derived from Cloudflare's `remote-mcp-github-oauth` template.

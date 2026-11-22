@@ -1,10 +1,10 @@
 import type { z } from "zod";
-import type { githubAuthSchema } from "./auth/providers/github.schema";
-import type { googleAuthSchema } from "./auth/providers/google.schema";
+import type { githubAuthSchema } from "./auth/providers/github/schema";
+import type { googleAuthSchema } from "./auth/providers/google/schema";
 import type { oidcAuthSchema } from "./auth/providers/oidc/schema";
 import type { AuthProviderName } from "./auth/providers/schema";
 import type { commonEnvSchema } from "./config";
-import type { githubStorageSchema } from "./storage/github.schema";
+import type { githubStorageSchema } from "./storage/github/schema";
 import type { StorageBackendName } from "./storage/schema";
 
 /**

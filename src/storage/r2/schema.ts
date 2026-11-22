@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // R2 needs no secret: the bucket arrives as the `VAULT_BUCKET` binding, which
 // zod cannot validate as a string, so its presence is checked where the backend
-// is constructed (`r2FromEnv`).
+// is constructed (`r2StorageFromEnv`).
 export const r2StorageSchema = z.object({
 	VAULT_STORAGE: z.literal("r2"),
 });
