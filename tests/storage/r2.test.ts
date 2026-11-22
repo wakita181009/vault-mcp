@@ -48,15 +48,19 @@ function fakeBucket(initial: Record<string, string> = {}, pageSize = 1000) {
 	return { bucket, objects, custom, storage: new R2Storage(bucket as unknown as R2Bucket) };
 }
 
-const all = () => true;
+/** What `VaultClient` hands `searchContent`: the listing, optionally narrowed. */
+const candidatesOf =
+	(storage: R2Storage, keep: (path: string) => boolean = () => true) =>
+	async () =>
+		(await storage.listFiles()).files.filter((f) => keep(f.path));
 
 describe("R2Storage.listFiles", () => {
-	it("lists every object with its size", async () => {
+	it("lists every object with its size and upload time", async () => {
 		const { storage } = fakeBucket({ "a.md": "abc", "dir/b.md": "x" });
 		expect(await storage.listFiles()).toEqual({
 			files: [
-				{ path: "a.md", size: 3 },
-				{ path: "dir/b.md", size: 1 },
+				{ path: "a.md", size: 3, modifiedAt: new Date(0) },
+				{ path: "dir/b.md", size: 1, modifiedAt: new Date(1000) },
 			],
 			truncated: false,
 		});
@@ -138,14 +142,14 @@ describe("R2Storage.deleteFile", () => {
 describe("R2Storage.searchContent", () => {
 	it("matches content case-insensitively with fragments", async () => {
 		const { storage } = fakeBucket({ "a.md": "Hello World", "b.md": "nothing here" });
-		expect(await storage.searchContent("world", 10, all)).toEqual([
+		expect(await storage.searchContent("world", 10, candidatesOf(storage))).toEqual([
 			{ path: "a.md", fragments: ["Hello World"] },
 		]);
 	});
 
 	it("only reads candidates the caller accepts", async () => {
 		const { storage, bucket } = fakeBucket({ "a.md": "hit", ".obsidian/x.md": "hit" });
-		const hits = await storage.searchContent("hit", 10, (p) => !p.startsWith(".obsidian/"));
+		const hits = await storage.searchContent("hit", 10, candidatesOf(storage, (p) => !p.startsWith(".obsidian/")));
 		expect(hits.map((h) => h.path)).toEqual(["a.md"]);
 		expect(bucket.get).not.toHaveBeenCalledWith(".obsidian/x.md");
 	});
@@ -153,7 +157,7 @@ describe("R2Storage.searchContent", () => {
 	it("stops scanning once the limit is reached", async () => {
 		const many = Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`n${i}.md`, "hit"]));
 		const { storage, bucket } = fakeBucket(many);
-		const hits = await storage.searchContent("hit", 2, all);
+		const hits = await storage.searchContent("hit", 2, candidatesOf(storage));
 		expect(hits).toHaveLength(2);
 		// One concurrent batch, not all 30 objects.
 		expect(bucket.get).toHaveBeenCalledTimes(6);
@@ -162,36 +166,46 @@ describe("R2Storage.searchContent", () => {
 	it("caps how many objects one search reads", async () => {
 		const many = Object.fromEntries(Array.from({ length: 600 }, (_, i) => [`n${i}.md`, "miss"]));
 		const { storage, bucket } = fakeBucket(many);
-		expect(await storage.searchContent("hit", 10, all)).toEqual([]);
+		expect(await storage.searchContent("hit", 10, candidatesOf(storage))).toEqual([]);
 		expect(bucket.get).toHaveBeenCalledTimes(500);
 	});
 
 	it("treats regex metacharacters in the query literally", async () => {
 		const { storage } = fakeBucket({ "a.md": "cost is $5 (approx)", "b.md": "cost is 55" });
-		expect((await storage.searchContent("$5 (", 10, all)).map((h) => h.path)).toEqual(["a.md"]);
+		expect((await storage.searchContent("$5 (", 10, candidatesOf(storage))).map((h) => h.path)).toEqual(["a.md"]);
 	});
 
 	it("scans the most recently uploaded notes first", async () => {
 		const { storage, bucket } = fakeBucket({ "old.md": "hit", "new.md": "hit" });
-		expect((await storage.searchContent("hit", 1, all)).map((h) => h.path)).toEqual(["new.md"]);
+		expect((await storage.searchContent("hit", 1, candidatesOf(storage))).map((h) => h.path)).toEqual(["new.md"]);
 		expect(bucket.get.mock.calls[0]?.[0]).toBe("new.md");
+	});
+
+	it("scans candidates without a modification time last", async () => {
+		const { storage, bucket } = fakeBucket({ "undated.md": "hit", "dated.md": "hit" });
+		const candidates = async () => [
+			{ path: "undated.md", size: 3 },
+			{ path: "dated.md", size: 3, modifiedAt: new Date(1) },
+		];
+		expect((await storage.searchContent("hit", 1, candidates)).map((h) => h.path)).toEqual(["dated.md"]);
+		expect(bucket.get.mock.calls[0]?.[0]).toBe("dated.md");
 	});
 
 	it("keeps other hits when one object fails to read", async () => {
 		const { storage, bucket } = fakeBucket({ "a.md": "hit", "b.md": "hit" });
 		bucket.get.mockRejectedValueOnce(new Error("R2 transient"));
-		expect(await storage.searchContent("hit", 10, all)).toHaveLength(1);
+		expect(await storage.searchContent("hit", 10, candidatesOf(storage))).toHaveLength(1);
 	});
 
 	it("treats an object deleted mid-scan as a non-match", async () => {
 		const { storage, bucket } = fakeBucket({ "a.md": "hit" });
 		bucket.get.mockResolvedValueOnce(null);
-		expect(await storage.searchContent("hit", 10, all)).toEqual([]);
+		expect(await storage.searchContent("hit", 10, candidatesOf(storage))).toEqual([]);
 	});
 
 	it("returns nothing for an empty query without reading", async () => {
 		const { storage, bucket } = fakeBucket({ "a.md": "x" });
-		expect(await storage.searchContent("", 10, all)).toEqual([]);
+		expect(await storage.searchContent("", 10, candidatesOf(storage))).toEqual([]);
 		expect(bucket.list).not.toHaveBeenCalled();
 	});
 });

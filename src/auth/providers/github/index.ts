@@ -1,5 +1,5 @@
 import { Octokit } from "octokit";
-import { parseList } from "../../../vault";
+import { parseList } from "../../../parse-list";
 import type { UpstreamProvider } from "../types";
 
 export const githubProvider: UpstreamProvider = {

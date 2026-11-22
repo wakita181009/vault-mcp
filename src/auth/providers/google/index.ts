@@ -1,4 +1,4 @@
-import { parseList } from "../../../vault";
+import { parseList } from "../../../parse-list";
 import { createOidcProvider } from "../oidc";
 
 // Endpoints from https://accounts.google.com/.well-known/openid-configuration,

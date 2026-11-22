@@ -27,7 +27,8 @@ export class R2Storage implements VaultStorage {
 
 	async listFiles(): Promise<{ files: FileEntry[]; truncated: boolean }> {
 		const { objects, truncated } = await this.listObjects();
-		return { files: objects.map((obj) => ({ path: obj.key, size: obj.size })), truncated };
+		const files = objects.map((obj) => ({ path: obj.key, size: obj.size, modifiedAt: obj.uploaded }));
+		return { files, truncated };
 	}
 
 	async readFile(path: string): Promise<string> {
@@ -63,17 +64,15 @@ export class R2Storage implements VaultStorage {
 	async searchContent(
 		query: string,
 		limit: number,
-		isCandidate: (path: string) => boolean,
+		listCandidates: () => Promise<FileEntry[]>,
 	): Promise<ContentMatch[]> {
 		if (query.length === 0) return [];
 		const pattern = new RegExp(escapeRegExp(query), "giu");
 
-		const { objects } = await this.listObjects();
-		const candidates = objects
-			.filter((obj) => isCandidate(obj.key))
-			.sort((a, b) => b.uploaded.getTime() - a.uploaded.getTime())
+		const candidates = (await listCandidates())
+			.toSorted((a, b) => modifiedTime(b) - modifiedTime(a))
 			.slice(0, MAX_SEARCH_SCAN)
-			.map((obj) => obj.key);
+			.map((file) => file.path);
 
 		const hits: ContentMatch[] = [];
 		for (let i = 0; i < candidates.length && hits.length < limit; i += SEARCH_CONCURRENCY) {
@@ -132,6 +131,8 @@ export function findFragments(text: string, pattern: RegExp): string[] {
 	}
 	return fragments;
 }
+
+const modifiedTime = (file: FileEntry) => file.modifiedAt?.getTime() ?? 0;
 
 function escapeRegExp(text: string): string {
 	return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AuthProviderName } from "../schema";
-import { parseList } from "../../../vault";
+import { parseList } from "../../../parse-list";
 import { UPSTREAM_FETCH_INIT } from "./fetch-init";
 import { discoverOidcEndpoints, type OidcEndpoints } from "./discovery";
 import { type UpstreamProvider, UpstreamIdentityError } from "../types";

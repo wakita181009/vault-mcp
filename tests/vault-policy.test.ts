@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { VaultStorage } from "../src/storage/types";
 import { VaultClient, VaultError } from "../src/vault";
 
@@ -53,19 +53,34 @@ describe("VaultClient over a non-GitHub backend", () => {
 
 describe("VaultClient search pruning hint", () => {
 	it("offers the backend only visible notes as scan candidates", async () => {
-		let isCandidate: ((path: string) => boolean) | undefined;
+		let candidates: string[] = [];
 		const storage: VaultStorage = {
-			...memoryStorage({}),
-			searchContent: async (_q, _l, predicate) => {
-				isCandidate = predicate;
+			...memoryStorage({ "notes/a.md": "", ".obsidian/a.md": "", "notes/a.json": "" }),
+			searchContent: async (_q, _l, listCandidates) => {
+				candidates = (await listCandidates()).map((f) => f.path);
 				return [];
 			},
 		};
 		const c = new VaultClient(storage, { allowedPrefixes: [], deniedPrefixes: [".obsidian/"] });
 		await c.searchNotes("x", 10);
-		expect(isCandidate?.("notes/a.md")).toBe(true);
-		expect(isCandidate?.(".obsidian/a.md")).toBe(false);
-		expect(isCandidate?.("notes/a.json")).toBe(false);
+		expect(candidates).toEqual(["notes/a.md"]);
+	});
+
+	it("lists the vault once per search, shared with filename matching", async () => {
+		const base = memoryStorage({ "notes/a.md": "x" });
+		const listFiles = vi.fn(base.listFiles);
+		const storage: VaultStorage = {
+			...base,
+			listFiles,
+			searchContent: async (_q, _l, listCandidates) => {
+				await listCandidates();
+				await listCandidates();
+				return [];
+			},
+		};
+		const c = new VaultClient(storage, { allowedPrefixes: [], deniedPrefixes: [] });
+		expect((await c.searchNotes("a", 10)).map((h) => h.path)).toEqual(["notes/a.md"]);
+		expect(listFiles).toHaveBeenCalledTimes(1);
 	});
 
 	it("still drops hidden hits a backend returns despite the hint", async () => {

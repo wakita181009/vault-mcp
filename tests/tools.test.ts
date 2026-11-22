@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
 	deleteNoteHandler,
 	errorResult,
-	isLoginAllowed,
 	listNotesHandler,
 	readNoteHandler,
 	searchNotesHandler,
@@ -38,20 +37,6 @@ describe("textResult / errorResult", () => {
 		const result = errorResult(new Error("boom"));
 		expect(result.isError).toBe(true);
 		expect(result.content[0].text).toContain("Vault operation failed:");
-	});
-});
-
-describe("isLoginAllowed", () => {
-	it("is false for an undefined login", () => {
-		expect(isLoginAllowed(undefined, ["alice"])).toBe(false);
-	});
-
-	it("is false for a login absent from the allowlist", () => {
-		expect(isLoginAllowed("carol", ["alice", "bob"])).toBe(false);
-	});
-
-	it("is true for an allowed login", () => {
-		expect(isLoginAllowed("alice", ["alice", "bob"])).toBe(true);
 	});
 });
 
