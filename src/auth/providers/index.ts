@@ -1,4 +1,4 @@
-import type { AuthProviderName } from "../../config";
+import type { AuthProviderName } from "./schema";
 import { githubProvider } from "./github";
 import { googleProvider } from "./google";
 import { oidcProvider } from "./oidc";

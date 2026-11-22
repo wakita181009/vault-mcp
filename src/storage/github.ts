@@ -1,4 +1,5 @@
 import { Octokit } from "octokit";
+import type { GitHubStorageEnvConfig } from "./github.schema";
 import { type ContentMatch, type FileEntry, VaultError, type VaultStorage } from "./types";
 
 /**
@@ -160,4 +161,13 @@ function isNotFound(error: unknown): boolean {
 	return (
 		typeof error === "object" && error !== null && (error as { status?: number }).status === 404
 	);
+}
+
+export function githubStorageFromEnv(config: GitHubStorageEnvConfig): GitHubStorage {
+	return new GitHubStorage({
+		owner: config.VAULT_OWNER,
+		repo: config.VAULT_REPO,
+		branch: config.VAULT_BRANCH,
+		token: config.VAULT_GITHUB_TOKEN,
+	});
 }

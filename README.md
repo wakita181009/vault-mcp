@@ -290,10 +290,13 @@ src/
 ├── vault.ts                   # Backend-agnostic policy layer: list/read/write/delete/search + path guards
 ├── storage/
 │   ├── index.ts               # storageFromEnv: picks the backend from VAULT_STORAGE
+│   ├── schema.ts              # storageEnvSchema: VAULT_STORAGE union of the backend schemas
 │   ├── types.ts               # VaultStorage interface every backend implements (+ VaultError)
 │   ├── github.ts              # GitHub API backend (Octokit)
-│   └── r2.ts                  # Cloudflare R2 backend (VAULT_BUCKET binding)
-├── config.ts                  # env schema + defaults; parseEnv validates at startup
+│   ├── github.schema.ts       # GitHub backend env keys
+│   ├── r2.ts                  # Cloudflare R2 backend (VAULT_BUCKET binding)
+│   └── r2.schema.ts           # R2 backend env keys
+├── config.ts                  # common env schema + defaults; parseEnv composes auth + storage
 ├── env.d.ts                   # secret bindings type augmentation
 └── auth/
     ├── handler.ts             # provider-agnostic OAuth login flow (Hono)
@@ -303,14 +306,15 @@ src/
     ├── props.ts               # identity captured at login, surfaced to the DO as this.props
     └── providers/             # upstream identity providers (selector in index.ts)
         ├── types.ts           # UpstreamProvider interface
-        ├── github.ts
-        ├── google.ts          # preset of the OIDC factory with pinned endpoints
-        └── oidc/              # generic OIDC: factory + provider, discovery, fetch options
+        ├── schema.ts          # authEnvSchema: AUTH_PROVIDER union of the provider schemas
+        ├── github.ts / github.schema.ts
+        ├── google.ts / google.schema.ts  # preset of the OIDC factory with pinned endpoints
+        └── oidc/              # generic OIDC: factory + provider, discovery, fetch options, schema
 ```
 
 Tests live in `tests/` (Vitest), mirroring the `src/` layout.
 
-To add another data source, implement `VaultStorage` from `src/storage/types.ts`, add its schema to
-`storageEnvSchema` (`src/config.ts`), and construct it in `storageFromEnv` (`src/storage/index.ts`). Backends only move bytes; path policy stays in `VaultClient`.
+To add another data source, implement `VaultStorage` from `src/storage/types.ts`, add a zod-only `<name>.schema.ts` to
+`storageEnvSchema` (`src/storage/schema.ts`), and construct it in `storageFromEnv` (`src/storage/index.ts`). Backends only move bytes; path policy stays in `VaultClient`.
 
 Derived from Cloudflare's `remote-mcp-github-oauth` template.
