@@ -1,7 +1,8 @@
 # vault-mcp
 
-Authenticated remote MCP server (Cloudflare Workers) that exposes a private, GitHub-hosted
-Obsidian vault to claude.ai and Claude Code. Reads (list/read/search) plus two note mutations:
+Authenticated remote MCP server (Cloudflare Workers) that exposes a private Obsidian vault —
+hosted in a GitHub repo (default) or a Cloudflare R2 bucket (`VAULT_STORAGE=r2`) — to claude.ai
+and Claude Code. Reads (list/read/search) plus two note mutations:
 `write_note` (create/overwrite) and `delete_note` — **no rename/move**. The target repo and
 access policy are configured through secrets; path-scope overrides default in `src/config.ts`,
 so `wrangler.jsonc` ships generic (no `vars`).
@@ -15,8 +16,10 @@ so `wrangler.jsonc` ships generic (no `vars`).
   `.md`/`.markdown` extension check.
 - **Policy lives in `vault.ts`, never in a backend.** Storage backends (`src/storage/`) implement
   `VaultStorage` and only move bytes. All guards run in `VaultClient` before a path reaches a
-  backend, so a new backend cannot weaken them. Add backends by implementing the interface and
-  wiring it in `vaultClientFromEnv`.
+  backend, so a new backend cannot weaken them. Add backends by implementing the interface, adding a branch to
+  `storageEnvSchema` in `config.ts`, and wiring it in `storageFromEnv` (`src/storage/index.ts`).
+  The `isCandidate` argument to `searchContent` is only a pruning hint; `VaultClient` must keep
+  re-filtering every hit.
 - **Writes and deletes obey the same path policy as reads.** `write_note` and `delete_note`
   must run every guard `read_note` does — `..`/absolute rejection and `VAULT_ALLOWED_PREFIXES` /
   `VAULT_DENIED_PREFIXES` — so a mutation can never reach `.git/`, `.obsidian/`, or agent dirs.
@@ -31,7 +34,9 @@ so `wrangler.jsonc` ships generic (no `vars`).
   `OIDC_ALLOW_UNVERIFIED_EMAIL=true` opt-in for IdPs that never send the claim — an explicit
   `email_verified: false` is rejected regardless. Keep the OIDC discovery document's `issuer`
   check in `providers/oidc/discovery.ts`: without it a hostile host could supply foreign endpoints.
-- **`VAULT_GITHUB_TOKEN` stays single-repo scoped.** It needs Contents: Read *and Write* (Write
+- **Storage credentials stay single-vault scoped.** For R2 that is the `VAULT_BUCKET` binding to
+  one bucket — never bind a broader bucket or swap in S3 API keys. For GitHub:
+  **`VAULT_GITHUB_TOKEN` stays single-repo scoped.** It needs Contents: Read *and Write* (Write
   covers both `write_note` and `delete_note`), but only on the vault repo. Never widen it beyond
   that one repo or swap in a broader token.
 - **Path safety.** `vault.ts` enforces `VAULT_ALLOWED_PREFIXES` / `VAULT_DENIED_PREFIXES`

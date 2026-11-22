@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEnv } from "../src/config";
+import { parseEnv, type VaultEnvConfig } from "../src/config";
 
 // Minimal set of required secrets; optional overrides are intentionally omitted
 // so tests can assert the in-code defaults kick in.
@@ -17,10 +17,15 @@ function parse(overrides: Record<string, string> = {}) {
 	return parseEnv({ ...REQUIRED, ...overrides } as unknown as Parameters<typeof parseEnv>[0]);
 }
 
+/** The GitHub branch, narrowing on the storage discriminator first. */
+function branchOf(config: VaultEnvConfig): string | undefined {
+	return config.VAULT_STORAGE === "github" ? config.VAULT_BRANCH : undefined;
+}
+
 describe("parseEnv", () => {
 	it("applies in-code defaults for omitted optional overrides", () => {
 		const config = parse();
-		expect(config.VAULT_BRANCH).toBe("main");
+		expect(branchOf(config)).toBe("main");
 		expect(config.VAULT_ALLOWED_PREFIXES).toBe("");
 		expect(config.VAULT_DENIED_PREFIXES).toBe(".git/,.obsidian/,.claude/");
 	});
@@ -31,7 +36,7 @@ describe("parseEnv", () => {
 			VAULT_ALLOWED_PREFIXES: "notes/",
 			VAULT_DENIED_PREFIXES: "secret/",
 		});
-		expect(config.VAULT_BRANCH).toBe("develop");
+		expect(branchOf(config)).toBe("develop");
 		expect(config.VAULT_ALLOWED_PREFIXES).toBe("notes/");
 		expect(config.VAULT_DENIED_PREFIXES).toBe("secret/");
 	});
@@ -77,7 +82,7 @@ describe("parseEnv AUTH_PROVIDER", () => {
 	it("accepts a google deploy without any GitHub OAuth app keys", () => {
 		const config = parseEnv(GOOGLE as unknown as Parameters<typeof parseEnv>[0]);
 		expect(config.AUTH_PROVIDER).toBe("google");
-		expect(config.VAULT_BRANCH).toBe("main");
+		expect(branchOf(config)).toBe("main");
 	});
 
 	it("requires the Google OAuth app keys when google is selected", () => {
@@ -115,7 +120,7 @@ describe("parseEnv AUTH_PROVIDER", () => {
 	it("accepts an oidc deploy with only the OIDC keys", () => {
 		const config = parseOidc();
 		expect(config.AUTH_PROVIDER).toBe("oidc");
-		expect(config.VAULT_BRANCH).toBe("main");
+		expect(branchOf(config)).toBe("main");
 	});
 
 	it("requires an https issuer URL", () => {
@@ -139,6 +144,41 @@ describe("parseEnv AUTH_PROVIDER", () => {
 		expect(parseOidc({ OIDC_ALLOW_UNVERIFIED_EMAIL: "true" }).AUTH_PROVIDER).toBe("oidc");
 		expect(() => parseOidc({ OIDC_ALLOW_UNVERIFIED_EMAIL: "yes" })).toThrow(
 			/OIDC_ALLOW_UNVERIFIED_EMAIL/,
+		);
+	});
+});
+
+describe("parseEnv VAULT_STORAGE", () => {
+	const { VAULT_GITHUB_TOKEN: _t, VAULT_OWNER: _o, VAULT_REPO: _r, ...AUTH_ONLY } = REQUIRED;
+	const parseR2 = (overrides: Record<string, string> = {}) =>
+		parseEnv({ ...AUTH_ONLY, VAULT_STORAGE: "r2", ...overrides } as unknown as Parameters<
+			typeof parseEnv
+		>[0]);
+
+	it("defaults to github when unset", () => {
+		expect(parse().VAULT_STORAGE).toBe("github");
+	});
+
+	it("accepts an r2 deploy without any GitHub vault keys", () => {
+		const config = parseR2();
+		expect(config.VAULT_STORAGE).toBe("r2");
+		expect(config.AUTH_PROVIDER).toBe("github");
+	});
+
+	it("still requires the GitHub vault keys when github storage is selected", () => {
+		expect(() =>
+			parseEnv(AUTH_ONLY as unknown as Parameters<typeof parseEnv>[0]),
+		).toThrow(/VAULT_GITHUB_TOKEN/);
+	});
+
+	it("rejects an unknown backend", () => {
+		expect(() => parseR2({ VAULT_STORAGE: "s3" })).toThrow(/VAULT_STORAGE/);
+	});
+
+	it("reports auth and storage errors together", () => {
+		const { GITHUB_CLIENT_ID: _c, ...noClient } = AUTH_ONLY;
+		expect(() => parseEnv(noClient as unknown as Parameters<typeof parseEnv>[0])).toThrow(
+			/GITHUB_CLIENT_ID[\s\S]*VAULT_GITHUB_TOKEN/,
 		);
 	});
 });

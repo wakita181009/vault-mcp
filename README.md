@@ -21,7 +21,9 @@ ships generic.
   Connect** IdP (`AUTH_PROVIDER=oidc`). Only identities on the provider's allowlist
   (`VAULT_ALLOWED_GITHUB_LOGINS` / `VAULT_ALLOWED_GOOGLE_EMAILS` / `VAULT_ALLOWED_OIDC_EMAILS`) get any tools at all.
 - **Accesses the vault** through the GitHub API using a **separate fine-grained PAT**
-  (`VAULT_GITHUB_TOKEN`) scoped to Contents Read + Write on the one vault repo.
+  (`VAULT_GITHUB_TOKEN`) scoped to Contents Read + Write on the one vault repo — or, with
+  `VAULT_STORAGE=r2`, from a **Cloudflare R2** bucket bound to the Worker (see
+  [Storage backend](#storage-backend)).
 - **Transport:** Streamable HTTP at `/mcp`.
 
 ### Tools
@@ -29,10 +31,10 @@ ships generic.
 | Tool | Description |
 | --- | --- |
 | `list_notes` | List note (`.md`) paths, optionally scoped to a subdirectory. |
-| `read_note` | Read the raw markdown of one note by repo-relative path. |
+| `read_note` | Read the raw markdown of one note by vault-relative path. |
 | `write_note` | Create a new note or overwrite an existing one (markdown paths only). |
-| `delete_note` | Delete an existing note by path (markdown paths only; recorded as a revertable git commit). |
-| `search_notes` | Content search (GitHub code search, indexed) + filename search, merged. |
+| `delete_note` | Delete an existing note by path (markdown paths only; on GitHub, recorded as a revertable git commit). |
+| `search_notes` | Content search (GitHub code search, indexed; R2: bounded scan) + filename search, merged. |
 
 ## Two credentials, two jobs
 
@@ -69,6 +71,29 @@ Keycloak, Slack, … — and resolves its endpoints from
   login is rejected. An explicit `email_verified: false` is rejected regardless. Only enable
   this on an IdP you control where every account's email is provisioned by an admin; on a
   multi-tenant or self-service IdP an attacker could register the allowlisted address.
+
+### Storage backend
+
+`VAULT_STORAGE` selects where the vault lives; it defaults to `github`.
+
+| `VAULT_STORAGE` | Needs | Sync from Obsidian | Mutations |
+| --- | --- | --- | --- |
+| `github` (default) | `VAULT_GITHUB_TOKEN`, `VAULT_OWNER`, `VAULT_REPO` | Obsidian Git | git commits — revertable |
+| `r2` | an R2 bucket bound as `VAULT_BUCKET` | any S3-compatible sync (e.g. Remotely Save) | overwrite/delete in place — **not** recoverable |
+
+For `r2`, object keys must be vault-relative paths at the bucket root (sync with no remote
+prefix and **encryption off** — the server reads plain markdown). The binding is not in the
+committed `wrangler.jsonc`, so add it to your copy:
+
+```jsonc
+"r2_buckets": [{ "binding": "VAULT_BUCKET", "bucket_name": "<your-vault-bucket>" }]
+```
+
+then run `pnpm cf-typegen`. The binding reaches only that one bucket, and no storage secret
+is needed. R2 has no content index, so `search_notes` scans up to the 500 most recently changed
+visible notes per query
+(listing is capped at 20,000 objects) to stay within the Workers subrequest limits. Check that
+your sync plugin picks up notes the server writes before relying on it for two-way edits.
 
 ## Access scope
 
@@ -207,6 +232,13 @@ pnpm exec wrangler secret put OIDC_DISPLAY_NAME           # optional, e.g. "Acme
 pnpm exec wrangler secret put OIDC_ALLOW_UNVERIFIED_EMAIL # optional: "true" for IdPs that omit email_verified
 ```
 
+For an R2 vault, add the `VAULT_BUCKET` binding (see [Storage backend](#storage-backend)) and
+replace the three `VAULT_GITHUB_TOKEN` / `VAULT_OWNER` / `VAULT_REPO` secrets with:
+
+```bash
+pnpm exec wrangler secret put VAULT_STORAGE               # r2
+```
+
 Endpoint: `https://vault-mcp.<subdomain>.workers.dev/mcp`
 
 ### 6. Connect the clients
@@ -257,8 +289,10 @@ src/
 ├── guard.ts                   # login-allowlist gate wrapping the MCP API handler (per AUTH_PROVIDER)
 ├── vault.ts                   # Backend-agnostic policy layer: list/read/write/delete/search + path guards
 ├── storage/
+│   ├── index.ts               # storageFromEnv: picks the backend from VAULT_STORAGE
 │   ├── types.ts               # VaultStorage interface every backend implements (+ VaultError)
-│   └── github.ts              # GitHub API backend (Octokit)
+│   ├── github.ts              # GitHub API backend (Octokit)
+│   └── r2.ts                  # Cloudflare R2 backend (VAULT_BUCKET binding)
 ├── config.ts                  # env schema + defaults; parseEnv validates at startup
 ├── env.d.ts                   # secret bindings type augmentation
 └── auth/
@@ -276,7 +310,7 @@ src/
 
 Tests live in `tests/` (Vitest), mirroring the `src/` layout.
 
-To add another data source, implement `VaultStorage` from `src/storage/types.ts` and construct it
-in `vaultClientFromEnv` (`src/vault.ts`). Backends only move bytes; path policy stays in `VaultClient`.
+To add another data source, implement `VaultStorage` from `src/storage/types.ts`, add its schema to
+`storageEnvSchema` (`src/config.ts`), and construct it in `storageFromEnv` (`src/storage/index.ts`). Backends only move bytes; path policy stays in `VaultClient`.
 
 Derived from Cloudflare's `remote-mcp-github-oauth` template.

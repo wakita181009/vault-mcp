@@ -38,14 +38,14 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 
 		this.server.tool(
 			"read_note",
-			"Read the raw markdown of a single note by its repo-relative path.",
+			"Read the raw markdown of a single note by its vault-relative path.",
 			readNoteInput.shape,
 			({ path }) => readNoteHandler(client, path),
 		);
 
 		this.server.tool(
 			"write_note",
-			"Create a new note or overwrite an existing one at a repo-relative path. Markdown files only.",
+			"Create a new note or overwrite an existing one at a vault-relative path. Markdown files only.",
 			writeNoteInput.shape,
 			({ path, content }) => writeNoteHandler(client, path, content),
 		);
@@ -59,7 +59,7 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 
 		this.server.tool(
 			"search_notes",
-			"Search notes by content (indexed) and filename. Returns matching paths with snippets.",
+			"Search notes by content and filename. Returns matching paths with snippets. Content search may not cover every note (index lag on GitHub; a bounded scan of the most recently changed notes on R2), so a miss is not proof of absence.",
 			searchNotesInput.shape,
 			({ query, limit }) => searchNotesHandler(client, query, limit),
 		);
