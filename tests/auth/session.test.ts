@@ -127,7 +127,7 @@ describe("validateCSRFToken", () => {
 describe("OAuth state lifecycle", () => {
 	it("stores the request under a TTL-bounded key and returns a token", async () => {
 		const kv = makeKV();
-		const { stateToken } = await createOAuthState(reqInfo, kv as unknown as KVNamespace);
+		const stateToken = await createOAuthState(reqInfo, kv as unknown as KVNamespace);
 		expect(stateToken).toMatch(/[0-9a-f-]{36}/);
 		expect(kv.put).toHaveBeenCalledWith(
 			`oauth:state:${stateToken}`,
@@ -137,14 +137,14 @@ describe("OAuth state lifecycle", () => {
 	});
 
 	it("binds the state to a session via a sha-256 hash cookie", async () => {
-		const { setCookie } = await bindStateToSession("tok");
+		const setCookie = await bindStateToSession("tok");
 		expect(setCookie).toMatch(/^__Host-CONSENTED_STATE=[0-9a-f]{64};/);
 	});
 
 	it("round-trips create → bind → validate and consumes both", async () => {
 		const kv = makeKV();
-		const { stateToken } = await createOAuthState(reqInfo, kv as unknown as KVNamespace);
-		const { setCookie } = await bindStateToSession(stateToken);
+		const stateToken = await createOAuthState(reqInfo, kv as unknown as KVNamespace);
+		const setCookie = await bindStateToSession(stateToken);
 		const req = callbackRequest(stateToken, cookieValue(setCookie));
 
 		const result = await validateOAuthState(req, kv as unknown as KVNamespace);
@@ -171,7 +171,7 @@ describe("OAuth state lifecycle", () => {
 
 	it("rejects when the session binding cookie is absent", async () => {
 		const kv = makeKV();
-		const { stateToken } = await createOAuthState(reqInfo, kv as unknown as KVNamespace);
+		const stateToken = await createOAuthState(reqInfo, kv as unknown as KVNamespace);
 		const req = callbackRequest(stateToken, null);
 		await expect(validateOAuthState(req, kv as unknown as KVNamespace)).rejects.toThrow(
 			/Missing session binding/,
@@ -180,7 +180,7 @@ describe("OAuth state lifecycle", () => {
 
 	it("rejects when the cookie hash does not match the state", async () => {
 		const kv = makeKV();
-		const { stateToken } = await createOAuthState(reqInfo, kv as unknown as KVNamespace);
+		const stateToken = await createOAuthState(reqInfo, kv as unknown as KVNamespace);
 		const req = callbackRequest(stateToken, "0".repeat(64));
 		await expect(validateOAuthState(req, kv as unknown as KVNamespace)).rejects.toThrow(
 			/does not match session/,
@@ -189,7 +189,7 @@ describe("OAuth state lifecycle", () => {
 
 	it("raises a server error when the stored state is not valid JSON", async () => {
 		const kv = makeKV();
-		const { setCookie } = await bindStateToSession("corrupt");
+		const setCookie = await bindStateToSession("corrupt");
 		kv.store.set("oauth:state:corrupt", "not-json{");
 		const req = callbackRequest("corrupt", cookieValue(setCookie));
 		await expect(validateOAuthState(req, kv as unknown as KVNamespace)).rejects.toMatchObject({
@@ -202,5 +202,17 @@ describe("approved-client cookie edge cases", () => {
 	it("ignores a malformed cookie value with no signature separator", async () => {
 		const req = requestWithCookie("__Host-APPROVED_CLIENTS=nodothere");
 		expect(await isClientApproved(req, "client-1", SECRET)).toBe(false);
+	});
+
+	it("treats a payload that is not valid base64 as no approvals instead of throwing", async () => {
+		const req = requestWithCookie("__Host-APPROVED_CLIENTS=abcd.!!not-base64!!");
+		expect(await isClientApproved(req, "client-1", SECRET)).toBe(false);
+	});
+
+	it("drops an undecodable cookie when adding a new approval", async () => {
+		const req = requestWithCookie("__Host-APPROVED_CLIENTS=abcd.!!not-base64!!");
+		const setCookie = await addApprovedClient(req, "client-1", SECRET);
+		const next = requestWithCookie(cookiePair(setCookie));
+		expect(await isClientApproved(next, "client-1", SECRET)).toBe(true);
 	});
 });

@@ -7,6 +7,17 @@ const CSRF_TOKEN_COOKIE = "__Host-CSRF_TOKEN";
 const CONSENTED_STATE_COOKIE = "__Host-CONSENTED_STATE";
 const APPROVED_CLIENTS_COOKIE = "__Host-APPROVED_CLIENTS";
 
+// One OAuth flow: the CSRF and session-binding cookies and the KV state share this lifetime.
+const FLOW_TTL_SECONDS = 600;
+const APPROVAL_TTL_SECONDS = 30 * 24 * 60 * 60;
+
+/** `__Host-` cookies must be Secure, Path=/, and domain-less, so every cookie here shares these attributes. */
+function hostCookie(name: string, value: string, maxAgeSeconds: number): string {
+	return `${name}=${value}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${maxAgeSeconds}`;
+}
+
+const stateKey = (stateToken: string) => `oauth:state:${stateToken}`;
+
 /** OAuth 2.1 error carrying a standard error code and a JSON error response. */
 export class OAuthError extends Error {
 	constructor(
@@ -32,18 +43,10 @@ export class OAuthError extends Error {
 	}
 }
 
-export interface OAuthStateResult {
-	stateToken: string;
-}
-
 export interface ValidateStateResult {
 	oauthReqInfo: AuthRequest;
 	/** Set-Cookie value that clears the session-binding cookie. */
 	clearCookie: string;
-}
-
-export interface BindStateResult {
-	setCookie: string;
 }
 
 export interface CSRFProtectionResult {
@@ -54,8 +57,7 @@ export interface CSRFProtectionResult {
 /** Generates a CSRF token and the matching short-lived cookie for the approval form. */
 export function generateCSRFProtection(): CSRFProtectionResult {
 	const token = crypto.randomUUID();
-	const setCookie = `${CSRF_TOKEN_COOKIE}=${token}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=600`;
-	return { token, setCookie };
+	return { token, setCookie: hostCookie(CSRF_TOKEN_COOKIE, token, FLOW_TTL_SECONDS) };
 }
 
 /**
@@ -79,19 +81,15 @@ export function validateCSRFToken(formData: FormData, request: Request): void {
 	}
 }
 
-/** Stores the OAuth request in KV (one-time use, TTL-bounded) under a fresh state token. */
+/** Stores the OAuth request in KV (one-time use, TTL-bounded) and returns its fresh state token. */
 export async function createOAuthState(
 	oauthReqInfo: AuthRequest,
 	kv: KVNamespace,
-	stateTTL = 600,
-): Promise<OAuthStateResult> {
+	stateTTL = FLOW_TTL_SECONDS,
+): Promise<string> {
 	const stateToken = crypto.randomUUID();
-
-	await kv.put(`oauth:state:${stateToken}`, JSON.stringify(oauthReqInfo), {
-		expirationTtl: stateTTL,
-	});
-
-	return { stateToken };
+	await kv.put(stateKey(stateToken), JSON.stringify(oauthReqInfo), { expirationTtl: stateTTL });
+	return stateToken;
 }
 
 /**
@@ -101,11 +99,8 @@ export async function createOAuthState(
  * hash, not the token itself, so a leaked state parameter (URL logs, referrer)
  * cannot be used to forge the cookie.
  */
-export async function bindStateToSession(stateToken: string): Promise<BindStateResult> {
-	const hashHex = await sha256Hex(stateToken);
-	const setCookie = `${CONSENTED_STATE_COOKIE}=${hashHex}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=600`;
-
-	return { setCookie };
+export async function bindStateToSession(stateToken: string): Promise<string> {
+	return hostCookie(CONSENTED_STATE_COOKIE, await sha256Hex(stateToken), FLOW_TTL_SECONDS);
 }
 
 /**
@@ -124,7 +119,7 @@ export async function validateOAuthState(
 		throw new OAuthError("invalid_request", "Missing state parameter", 400);
 	}
 
-	const storedDataJson = await kv.get(`oauth:state:${stateFromQuery}`);
+	const storedDataJson = await kv.get(stateKey(stateFromQuery));
 	if (!storedDataJson) {
 		throw new OAuthError("invalid_request", "Invalid or expired state", 400);
 	}
@@ -155,8 +150,8 @@ export async function validateOAuthState(
 	}
 
 	// State and its cookie are one-time use — consume both.
-	await kv.delete(`oauth:state:${stateFromQuery}`);
-	const clearCookie = `${CONSENTED_STATE_COOKIE}=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0`;
+	await kv.delete(stateKey(stateFromQuery));
+	const clearCookie = hostCookie(CONSENTED_STATE_COOKIE, "", 0);
 
 	return { oauthReqInfo, clearCookie };
 }
@@ -177,8 +172,6 @@ export async function addApprovedClient(
 	clientId: string,
 	cookieSecret: string,
 ): Promise<string> {
-	const THIRTY_DAYS_IN_SECONDS = 2592000;
-
 	const existingApprovedClients =
 		(await getApprovedClientsFromCookie(request, cookieSecret)) || [];
 	const updatedApprovedClients = Array.from(new Set([...existingApprovedClients, clientId]));
@@ -187,7 +180,7 @@ export async function addApprovedClient(
 	const signature = await signData(payload, cookieSecret);
 	const cookieValue = `${signature}.${btoa(payload)}`;
 
-	return `${APPROVED_CLIENTS_COOKIE}=${cookieValue}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${THIRTY_DAYS_IN_SECONDS}`;
+	return hostCookie(APPROVED_CLIENTS_COOKIE, cookieValue, APPROVAL_TTL_SECONDS);
 }
 
 function getCookie(request: Request, name: string): string | null {
@@ -203,8 +196,11 @@ function getCookie(request: Request, name: string): string | null {
 /** Computes the SHA-256 of the input and returns it as a lowercase hex string. */
 async function sha256Hex(input: string): Promise<string> {
 	const data = new TextEncoder().encode(input);
-	const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-	return Array.from(new Uint8Array(hashBuffer))
+	return toHex(await crypto.subtle.digest("SHA-256", data));
+}
+
+function toHex(buffer: ArrayBuffer): string {
+	return Array.from(new Uint8Array(buffer))
 		.map((b) => b.toString(16).padStart(2, "0"))
 		.join("");
 }
@@ -220,7 +216,10 @@ async function getApprovedClientsFromCookie(
 	if (parts.length !== 2) return null;
 
 	const [signatureHex, base64Payload] = parts;
-	const payload = atob(base64Payload);
+	const payload = decodeBase64(base64Payload);
+	// A tampered or truncated cookie must read as "nothing approved", not throw
+	// out of `GET /authorize` as a 500.
+	if (payload === null) return null;
 
 	const isValid = await verifySignature(signatureHex, payload, cookieSecret);
 
@@ -240,13 +239,18 @@ async function getApprovedClientsFromCookie(
 	}
 }
 
+function decodeBase64(value: string): string | null {
+	try {
+		return atob(value);
+	} catch {
+		return null;
+	}
+}
+
 async function signData(data: string, secret: string): Promise<string> {
 	const key = await importKey(secret);
 	const enc = new TextEncoder();
-	const signatureBuffer = await crypto.subtle.sign("HMAC", key, enc.encode(data));
-	return Array.from(new Uint8Array(signatureBuffer))
-		.map((b) => b.toString(16).padStart(2, "0"))
-		.join("");
+	return toHex(await crypto.subtle.sign("HMAC", key, enc.encode(data)));
 }
 
 async function verifySignature(

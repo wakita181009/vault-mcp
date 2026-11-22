@@ -26,64 +26,55 @@ export function errorResult(error: unknown): ToolResult {
 	return { content: [{ type: "text" as const, text: message }], isError: true };
 }
 
-export async function listNotesHandler(client: VaultReader, dir?: string): Promise<ToolResult> {
+/** Runs a tool body, turning any thrown error into an MCP error result instead of a protocol failure. */
+async function toToolResult(run: () => Promise<string>): Promise<ToolResult> {
 	try {
+		return textResult(await run());
+	} catch (error) {
+		return errorResult(error);
+	}
+}
+
+export function listNotesHandler(client: VaultReader, dir?: string): Promise<ToolResult> {
+	return toToolResult(async () => {
 		const { notes, truncated } = await client.listNotes(dir);
-		const lines = notes.map((n) => n.path);
 		const header = `${notes.length} note(s)${truncated ? " (listing truncated by backend)" : ""}:`;
-		return textResult([header, ...lines].join("\n"));
-	} catch (error) {
-		return errorResult(error);
-	}
+		return [header, ...notes.map((n) => n.path)].join("\n");
+	});
 }
 
-export async function readNoteHandler(client: VaultReader, path: string): Promise<ToolResult> {
-	try {
-		const note = await client.readNote(path);
-		return textResult(note.content);
-	} catch (error) {
-		return errorResult(error);
-	}
+export function readNoteHandler(client: VaultReader, path: string): Promise<ToolResult> {
+	return toToolResult(async () => (await client.readNote(path)).content);
 }
 
-export async function writeNoteHandler(
+export function writeNoteHandler(
 	client: VaultWriter,
 	path: string,
 	content: string,
 ): Promise<ToolResult> {
-	try {
+	return toToolResult(async () => {
 		const { path: written, created } = await client.writeNote(path, content);
-		return textResult(`${created ? "Created" : "Updated"} ${written}`);
-	} catch (error) {
-		return errorResult(error);
-	}
+		return `${created ? "Created" : "Updated"} ${written}`;
+	});
 }
 
-export async function deleteNoteHandler(client: VaultDeleter, path: string): Promise<ToolResult> {
-	try {
-		const { path: deleted } = await client.deleteNote(path);
-		return textResult(`Deleted ${deleted}`);
-	} catch (error) {
-		return errorResult(error);
-	}
+export function deleteNoteHandler(client: VaultDeleter, path: string): Promise<ToolResult> {
+	return toToolResult(async () => `Deleted ${(await client.deleteNote(path)).path}`);
 }
 
-export async function searchNotesHandler(
+export function searchNotesHandler(
 	client: VaultReader,
 	query: string,
 	limit: number,
 ): Promise<ToolResult> {
-	try {
+	return toToolResult(async () => {
 		const hits = await client.searchNotes(query, limit);
-		if (hits.length === 0) {
-			return textResult(`No notes matched: ${query}`);
-		}
-		const blocks = hits.map((hit) => {
-			const snippet = hit.fragments.length > 0 ? `\n${hit.fragments.join("\n---\n")}` : "";
-			return `## ${hit.path}${snippet}`;
-		});
-		return textResult(blocks.join("\n\n"));
-	} catch (error) {
-		return errorResult(error);
-	}
+		if (hits.length === 0) return `No notes matched: ${query}`;
+		return hits
+			.map((hit) => {
+				const snippet = hit.fragments.length > 0 ? `\n${hit.fragments.join("\n---\n")}` : "";
+				return `## ${hit.path}${snippet}`;
+			})
+			.join("\n\n");
+	});
 }
