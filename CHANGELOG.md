@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/wakita181009/vault-mcp/compare/v0.5.0...v0.5.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* a malformed approved-clients cookie whose payload is not valid base64 ([86821d4](https://github.com/wakita181009/vault-mcp/commit/86821d460eef57f23142eab01cfab0dd42a753fd))
+
 ## [0.5.0](https://github.com/wakita181009/vault-mcp/compare/v0.4.0...v0.5.0) (2026-11-22)
 
 
