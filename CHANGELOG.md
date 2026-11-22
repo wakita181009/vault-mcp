@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/wakita181009/vault-mcp/compare/v0.4.0...v0.5.0) (2026-11-22)
+
+
+### Features
+
+* add Cloudflare R2 storage backend ([#83](https://github.com/wakita181009/vault-mcp/issues/83)) ([c9ba9c1](https://github.com/wakita181009/vault-mcp/commit/c9ba9c128e709eb6c73008b0cc5bf7a0afa702ba))
+
 ## [0.4.0](https://github.com/wakita181009/vault-mcp/compare/v0.3.0...v0.4.0) (2026-10-27)
 
 
