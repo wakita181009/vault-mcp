@@ -181,6 +181,16 @@ describe("R2Storage.searchContent", () => {
 		expect(bucket.get.mock.calls[0]?.[0]).toBe("new.md");
 	});
 
+	it("scans candidates without a modification time last", async () => {
+		const { storage, bucket } = fakeBucket({ "undated.md": "hit", "dated.md": "hit" });
+		const candidates = async () => [
+			{ path: "undated.md", size: 3 },
+			{ path: "dated.md", size: 3, modifiedAt: new Date(1) },
+		];
+		expect((await storage.searchContent("hit", 1, candidates)).map((h) => h.path)).toEqual(["dated.md"]);
+		expect(bucket.get.mock.calls[0]?.[0]).toBe("dated.md");
+	});
+
 	it("keeps other hits when one object fails to read", async () => {
 		const { storage, bucket } = fakeBucket({ "a.md": "hit", "b.md": "hit" });
 		bucket.get.mockRejectedValueOnce(new Error("R2 transient"));
