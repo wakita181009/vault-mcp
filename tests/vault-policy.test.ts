@@ -50,3 +50,30 @@ describe("VaultClient over a non-GitHub backend", () => {
 		await expect(c.deleteNote("../a.md")).rejects.toThrow(/Invalid path/);
 	});
 });
+
+describe("VaultClient search pruning hint", () => {
+	it("offers the backend only visible notes as scan candidates", async () => {
+		let isCandidate: ((path: string) => boolean) | undefined;
+		const storage: VaultStorage = {
+			...memoryStorage({}),
+			searchContent: async (_q, _l, predicate) => {
+				isCandidate = predicate;
+				return [];
+			},
+		};
+		const c = new VaultClient(storage, { allowedPrefixes: [], deniedPrefixes: [".obsidian/"] });
+		await c.searchNotes("x", 10);
+		expect(isCandidate?.("notes/a.md")).toBe(true);
+		expect(isCandidate?.(".obsidian/a.md")).toBe(false);
+		expect(isCandidate?.("notes/a.json")).toBe(false);
+	});
+
+	it("still drops hidden hits a backend returns despite the hint", async () => {
+		const storage: VaultStorage = {
+			...memoryStorage({}),
+			searchContent: async () => [{ path: ".obsidian/a.md", fragments: ["leak"] }],
+		};
+		const c = new VaultClient(storage, { allowedPrefixes: [], deniedPrefixes: [".obsidian/"] });
+		expect(await c.searchNotes("leak", 10)).toEqual([]);
+	});
+});

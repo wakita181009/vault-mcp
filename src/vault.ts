@@ -1,5 +1,5 @@
 import { parseEnv } from "./config";
-import { GitHubStorage } from "./storage/github";
+import { storageFromEnv } from "./storage";
 import { type ContentMatch, VaultError, type VaultStorage } from "./storage/types";
 
 export { VaultError } from "./storage/types";
@@ -34,12 +34,7 @@ const NOTE_EXTENSIONS = [".md", ".markdown"];
 /** Validate the Worker env (fail fast on misconfig) and wire the configured backend. */
 export function vaultClientFromEnv(env: Env): VaultClient {
 	const config = parseEnv(env);
-	const storage = new GitHubStorage({
-		owner: config.VAULT_OWNER,
-		repo: config.VAULT_REPO,
-		branch: config.VAULT_BRANCH,
-		token: config.VAULT_GITHUB_TOKEN,
-	});
+	const storage = storageFromEnv(config, env);
 	return new VaultClient(storage, {
 		allowedPrefixes: parseList(config.VAULT_ALLOWED_PREFIXES),
 		deniedPrefixes: parseList(config.VAULT_DENIED_PREFIXES),
@@ -152,7 +147,9 @@ export class VaultClient {
 		const hits = new Map<string, SearchHit>();
 
 		const [contentHits, filenameHits] = await Promise.all([
-			this.storage.searchContent(query, limit).catch(() => [] as SearchHit[]),
+			this.storage
+				.searchContent(query, limit, (path) => isNote(path) && isPathVisible(path, this.config))
+				.catch(() => [] as SearchHit[]),
 			this.filenameSearch(query),
 		]);
 

@@ -21,7 +21,8 @@
    *   pnpm exec wrangler secret put OIDC_CLIENT_ID        # OIDC client (oidc provider only)
    *   pnpm exec wrangler secret put OIDC_CLIENT_SECRET    # OIDC client (oidc provider only)
    *   pnpm exec wrangler secret put COOKIE_ENCRYPTION_KEY # `openssl rand -hex 32`
-   *   pnpm exec wrangler secret put VAULT_GITHUB_TOKEN    # fine-grained PAT, Contents R/W on the vault repo
+   *   pnpm exec wrangler secret put VAULT_STORAGE         # optional: "github" (default) or "r2" (needs a VAULT_BUCKET r2_buckets binding)
+   *   pnpm exec wrangler secret put VAULT_GITHUB_TOKEN    # fine-grained PAT, Contents R/W on the vault repo (github storage)
    *   pnpm exec wrangler secret put VAULT_OWNER           # GitHub owner of the vault repo
    *   pnpm exec wrangler secret put VAULT_REPO            # vault repo name
    *   pnpm exec wrangler secret put VAULT_ALLOWED_GITHUB_LOGINS # allowed GitHub logins (github provider)

@@ -13,7 +13,7 @@ export const listNotesInput = z.object({
 	dir: z
 		.string()
 		.optional()
-		.describe("Optional repo-relative directory to scope the listing to, e.g. 'user_profile'."),
+		.describe("Optional vault-relative directory to scope the listing to, e.g. 'user_profile'."),
 });
 
 export const readNoteInput = z.object({

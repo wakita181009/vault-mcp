@@ -25,11 +25,20 @@ const MIN_COOKIE_KEY_LENGTH = 32;
 // code-reviewed; override per deploy with a `VAULT_DENIED_PREFIXES` secret.
 const DEFAULT_DENIED_PREFIXES = ".git/,.obsidian/,.claude/";
 
-// Keys every deploy needs regardless of which upstream login provider is used.
+// Keys every deploy needs regardless of which login provider or storage backend is used.
 export const commonEnvSchema = z.object({
 	COOKIE_ENCRYPTION_KEY: z
 		.string()
 		.min(MIN_COOKIE_KEY_LENGTH, `too short — generate with \`openssl rand -hex 32\``),
+	VAULT_ALLOWED_PREFIXES: z.string().default(""),
+	VAULT_DENIED_PREFIXES: z.string().default(DEFAULT_DENIED_PREFIXES),
+});
+
+// Storage backends are chosen independently of the login provider, so they form
+// a second discriminated union keyed on `VAULT_STORAGE`. It defaults to GitHub so
+// existing deploys keep working without setting it.
+export const githubStorageSchema = z.object({
+	VAULT_STORAGE: z.literal("github").default("github"),
 	// Fine-grained PATs start with `github_pat_`; reject a classic `ghp_` token or
 	// placeholder early rather than on the first GitHub API 401.
 	VAULT_GITHUB_TOKEN: z
@@ -40,9 +49,21 @@ export const commonEnvSchema = z.object({
 	VAULT_OWNER: z.string().min(1),
 	VAULT_REPO: z.string().min(1),
 	VAULT_BRANCH: z.string().min(1).default("main"),
-	VAULT_ALLOWED_PREFIXES: z.string().default(""),
-	VAULT_DENIED_PREFIXES: z.string().default(DEFAULT_DENIED_PREFIXES),
 });
+
+// R2 needs no secret: the bucket arrives as the `VAULT_BUCKET` binding, which
+// zod cannot validate as a string, so its presence is checked where the backend
+// is constructed (`storage/index.ts`).
+export const r2StorageSchema = z.object({
+	VAULT_STORAGE: z.literal("r2"),
+});
+
+export const storageEnvSchema = z.discriminatedUnion("VAULT_STORAGE", [
+	githubStorageSchema,
+	r2StorageSchema,
+]);
+
+export type StorageBackendName = z.infer<typeof storageEnvSchema>["VAULT_STORAGE"];
 
 // Each login provider brings its own OAuth app credentials and its own
 // allowlist, because the identity it yields differs (GitHub login vs Google
@@ -91,7 +112,7 @@ export const envSchema = z.discriminatedUnion("AUTH_PROVIDER", [
 export type AuthProviderName = z.infer<typeof envSchema>["AUTH_PROVIDER"];
 
 /** Validated env config with defaults applied — the return type of `parseEnv`. */
-export type VaultEnvConfig = z.infer<typeof envSchema>;
+export type VaultEnvConfig = z.infer<typeof envSchema> & z.infer<typeof storageEnvSchema>;
 
 /**
  * Validate the Worker env, throwing an aggregated, secret-safe error if any
@@ -103,12 +124,14 @@ export type VaultEnvConfig = z.infer<typeof envSchema>;
  * reaches the logs.
  */
 export function parseEnv(env: Env): VaultEnvConfig {
-	const result = envSchema.safeParse(env);
-	if (!result.success) {
-		const issues = result.error.issues
+	// Parse both unions before failing so one error lists every bad key at once.
+	const auth = envSchema.safeParse(env);
+	const storage = storageEnvSchema.safeParse(env);
+	if (!auth.success || !storage.success) {
+		const issues = [...(auth.error?.issues ?? []), ...(storage.error?.issues ?? [])]
 			.map((issue) => `  - ${issue.path.join(".") || "(root)"}: ${issue.message}`)
 			.join("\n");
 		throw new Error(`Invalid Worker environment:\n${issues}`);
 	}
-	return result.data;
+	return { ...auth.data, ...storage.data };
 }

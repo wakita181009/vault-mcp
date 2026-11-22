@@ -28,8 +28,16 @@ export interface VaultStorage {
 	/**
 	 * Full-text search, if the backend has an index. `VaultClient` always adds
 	 * filename matching on top, so a backend without search may return [].
+	 *
+	 * `isCandidate` lets a backend that scans files (no index) skip paths
+	 * `VaultClient` would drop anyway, so its scan budget goes to visible notes.
+	 * It is a pruning hint only — `VaultClient` re-filters every hit itself.
 	 */
-	searchContent(query: string, limit: number): Promise<ContentMatch[]>;
+	searchContent(
+		query: string,
+		limit: number,
+		isCandidate: (path: string) => boolean,
+	): Promise<ContentMatch[]>;
 }
 
 export class VaultError extends Error {
