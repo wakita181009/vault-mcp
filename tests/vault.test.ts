@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
 	isPathVisible,
 	normalizePath,
-	parseList,
 	type VaultConfig,
 	VaultClient,
 	VaultError,
@@ -102,18 +101,6 @@ describe("isPathVisible", () => {
 	it("returns false for paths that fail normalization", () => {
 		expect(isPathVisible("../escape.md", baseConfig)).toBe(false);
 		expect(isPathVisible("a\\b.md", baseConfig)).toBe(false);
-	});
-});
-
-describe("parseList", () => {
-	it("returns an empty array for undefined or empty input", () => {
-		expect(parseList(undefined)).toEqual([]);
-		expect(parseList("")).toEqual([]);
-	});
-
-	it("splits on commas, trimming and dropping empty entries", () => {
-		expect(parseList("a, b ,c")).toEqual(["a", "b", "c"]);
-		expect(parseList("a,,b, ,c")).toEqual(["a", "b", "c"]);
 	});
 });
 

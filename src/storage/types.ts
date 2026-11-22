@@ -8,6 +8,8 @@
 export type FileEntry = {
 	path: string;
 	size: number;
+	/** Last write time, when the backend's listing carries it (R2 does; a git tree does not). */
+	modifiedAt?: Date;
 };
 
 export type ContentMatch = {
@@ -29,14 +31,17 @@ export interface VaultStorage {
 	 * Full-text search, if the backend has an index. `VaultClient` always adds
 	 * filename matching on top, so a backend without search may return [].
 	 *
-	 * `isCandidate` lets a backend that scans files (no index) skip paths
-	 * `VaultClient` would drop anyway, so its scan budget goes to visible notes.
-	 * It is a pruning hint only — `VaultClient` re-filters every hit itself.
+	 * `candidates` resolves to the visible notes from the listing `VaultClient`
+	 * already fetches for filename matching, so a backend that scans files (no
+	 * index) neither lists the vault a second time nor spends its scan budget on
+	 * paths that would be dropped. It is lazy so an indexed backend that ignores
+	 * it costs nothing. It is a pruning hint only — `VaultClient` re-filters
+	 * every hit itself.
 	 */
 	searchContent(
 		query: string,
 		limit: number,
-		isCandidate: (path: string) => boolean,
+		candidates: () => Promise<FileEntry[]>,
 	): Promise<ContentMatch[]>;
 }
 

@@ -87,8 +87,3 @@ export async function searchNotesHandler(
 		return errorResult(error);
 	}
 }
-
-/** Whether a login identity is present and on the configured allowlist. */
-export function isLoginAllowed(login: string | undefined, allowedLogins: string[]): boolean {
-	return login !== undefined && allowedLogins.includes(login);
-}

@@ -22,7 +22,7 @@ so `wrangler.jsonc` ships generic (no `vars`).
   `src/storage/` and `src/auth/providers/`; `src/config.ts` keeps only the common keys and composes
   the layers in `parseEnv`. Keep each `schema.ts` importing only `zod` — `config.ts` imports them, and
   a runtime import there (e.g. `vault.ts`) would form an import cycle.
-  The `isCandidate` argument to `searchContent` is only a pruning hint; `VaultClient` must keep
+  The `candidates` argument to `searchContent` is only a pruning hint; `VaultClient` must keep
   re-filtering every hit.
 - **Writes and deletes obey the same path policy as reads.** `write_note` and `delete_note`
   must run every guard `read_note` does — `..`/absolute rejection and `VAULT_ALLOWED_PREFIXES` /

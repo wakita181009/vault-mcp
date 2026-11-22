@@ -1,6 +1,7 @@
 import { parseEnv } from "./config";
+import { parseList } from "./parse-list";
 import { storageFromEnv } from "./storage";
-import { type ContentMatch, VaultError, type VaultStorage } from "./storage/types";
+import { type ContentMatch, type FileEntry, VaultError, type VaultStorage } from "./storage/types";
 
 export { VaultError } from "./storage/types";
 
@@ -41,14 +42,6 @@ export function vaultClientFromEnv(env: Env): VaultClient {
 	});
 }
 
-export function parseList(raw: string | undefined): string[] {
-	if (!raw) return [];
-	return raw
-		.split(",")
-		.map((s) => s.trim())
-		.filter((s) => s.length > 0);
-}
-
 /** Whether a vault path may be exposed given the allow/deny policy. */
 export function isPathVisible(path: string, config: VaultConfig): boolean {
 	const p = normalizePath(path);
@@ -80,6 +73,13 @@ function matchesPrefix(path: string, prefix: string): boolean {
 function isNote(path: string): boolean {
 	const lower = path.toLowerCase();
 	return NOTE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+async function filenameMatches(query: string, files: Promise<FileEntry[]>): Promise<SearchHit[]> {
+	const needle = query.toLowerCase();
+	return (await files)
+		.filter((entry) => entry.path.toLowerCase().includes(needle))
+		.map((entry) => ({ path: entry.path, fragments: [] }));
 }
 
 export class VaultClient {
@@ -142,19 +142,29 @@ export class VaultClient {
 	 * Search notes. Combines the backend's content search with filename matching
 	 * from the listing so results are useful even when the backend's index is
 	 * cold, unavailable, or absent.
+	 *
+	 * The vault is listed at most once per search: filename matching and a
+	 * scanning backend share one memoized listing, because on R2 every listed
+	 * page is a subrequest against a per-invocation cap.
 	 */
 	async searchNotes(query: string, limit: number): Promise<SearchHit[]> {
 		const hits = new Map<string, SearchHit>();
 
+		let listing: Promise<FileEntry[]> | undefined;
+		const visibleNotes = () => {
+			listing ??= this.storage
+				.listFiles()
+				.then(({ files }) => files.filter((entry) => this.isVisibleNote(entry.path)));
+			return listing;
+		};
+
 		const [contentHits, filenameHits] = await Promise.all([
-			this.storage
-				.searchContent(query, limit, (path) => isNote(path) && isPathVisible(path, this.config))
-				.catch(() => [] as SearchHit[]),
-			this.filenameSearch(query),
+			this.storage.searchContent(query, limit, visibleNotes).catch(() => [] as SearchHit[]),
+			filenameMatches(query, visibleNotes()),
 		]);
 
 		for (const hit of [...contentHits, ...filenameHits]) {
-			if (!isNote(hit.path) || !isPathVisible(hit.path, this.config)) continue;
+			if (!this.isVisibleNote(hit.path)) continue;
 			const existing = hits.get(hit.path);
 			hits.set(hit.path, {
 				path: hit.path,
@@ -166,13 +176,8 @@ export class VaultClient {
 		return [...hits.values()];
 	}
 
-	private async filenameSearch(query: string): Promise<SearchHit[]> {
-		const { files } = await this.storage.listFiles();
-		const needle = query.toLowerCase();
-		return files
-			.map((entry) => entry.path)
-			.filter((path) => path.toLowerCase().includes(needle))
-			.map((path) => ({ path, fragments: [] }));
+	private isVisibleNote(path: string): boolean {
+		return isNote(path) && isPathVisible(path, this.config);
 	}
 
 	private guardReadable(path: string): string {

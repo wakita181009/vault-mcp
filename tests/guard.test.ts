@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createGuardedApiHandler } from "../src/guard";
+import { createGuardedApiHandler, isLoginAllowed } from "../src/guard";
 
 const env = { VAULT_ALLOWED_GITHUB_LOGINS: "alice,bob" } as unknown as Env;
 
@@ -63,5 +63,19 @@ describe("createGuardedApiHandler with the Google provider", () => {
 	it("throws on an unknown provider instead of falling back to GitHub", () => {
 		const badEnv = { AUTH_PROVIDER: "okta" } as unknown as Env;
 		expect(() => handler.fetch?.(request, badEnv, ctxWith("alice"))).toThrow(/AUTH_PROVIDER/);
+	});
+});
+
+describe("isLoginAllowed", () => {
+	it("is false for an undefined login", () => {
+		expect(isLoginAllowed(undefined, ["alice"])).toBe(false);
+	});
+
+	it("is false for a login absent from the allowlist", () => {
+		expect(isLoginAllowed("carol", ["alice", "bob"])).toBe(false);
+	});
+
+	it("is true for an allowed login", () => {
+		expect(isLoginAllowed("alice", ["alice", "bob"])).toBe(true);
 	});
 });
