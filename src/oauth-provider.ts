@@ -1,12 +1,9 @@
 import OAuthProvider, { type OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { createAuthHandler } from "./auth/handler";
 import { authProviderFromEnv } from "./auth/providers";
+import type { ApiHandler } from "./guard";
 
 export const MCP_PATH = "/mcp";
-
-type ApiHandler = {
-	fetch(request: Request, env: Env, ctx: ExecutionContext): Response | Promise<Response>;
-};
 
 // Since workers-oauth-provider 1.0 the canonical resource URL is mandatory: it
 // becomes every token's audience and must equal the value existing grants were

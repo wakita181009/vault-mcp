@@ -127,6 +127,12 @@ describe("readNote", () => {
 		await expect(client.readNote("ghost.md")).rejects.toThrow(/Note not found/);
 	});
 
+	it("propagates a non-404 API failure instead of treating it as a missing note", async () => {
+		const serverError = Object.assign(new Error("Server Error"), { status: 500 });
+		gh.getContent.mockRejectedValue(serverError);
+		await expect(client.readNote("notes/a.md")).rejects.toBe(serverError);
+	});
+
 	it("throws when the path resolves to a directory listing", async () => {
 		gh.getContent.mockResolvedValue({ data: [{ type: "file", name: "x" }] });
 		await expect(client.readNote("adir")).rejects.toThrow(/Not a file/);

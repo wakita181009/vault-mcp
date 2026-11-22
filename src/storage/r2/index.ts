@@ -1,3 +1,4 @@
+import { invalidEnvError } from "../../env-error";
 import { type ContentMatch, type FileEntry, VaultError, type VaultStorage } from "../types";
 
 /**
@@ -142,9 +143,9 @@ export function r2StorageFromEnv(env: Pick<Env, "VAULT_BUCKET">): R2Storage {
 	// Bindings are not strings, so `parseEnv` cannot see them; check here so a
 	// missing `r2_buckets` entry fails as loudly as a missing secret.
 	if (!env.VAULT_BUCKET) {
-		throw new Error(
-			"Invalid Worker environment:\n  - VAULT_BUCKET: R2 binding is required when VAULT_STORAGE=r2",
-		);
+		throw invalidEnvError([
+			{ key: "VAULT_BUCKET", message: "R2 binding is required when VAULT_STORAGE=r2" },
+		]);
 	}
 	return new R2Storage(env.VAULT_BUCKET);
 }

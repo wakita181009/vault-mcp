@@ -189,8 +189,8 @@ describe("POST /authorize", () => {
 
 describe("GET /callback", () => {
 	const seedState = async () => {
-		const { stateToken } = await createOAuthState(reqInfo as never, kv as never);
-		const { setCookie } = await bindStateToSession(stateToken);
+		const stateToken = await createOAuthState(reqInfo as never, kv as never);
+		const setCookie = await bindStateToSession(stateToken);
 		return { stateToken, consented: setCookie.split(";")[0].split("=").slice(1).join("=") };
 	};
 
@@ -231,8 +231,8 @@ describe("GET /callback", () => {
 	});
 
 	it("400s when the stored request has no client id", async () => {
-		const { stateToken } = await createOAuthState({ ...reqInfo, clientId: undefined } as never, kv as never);
-		const { setCookie } = await bindStateToSession(stateToken);
+		const stateToken = await createOAuthState({ ...reqInfo, clientId: undefined } as never, kv as never);
+		const setCookie = await bindStateToSession(stateToken);
 		const consented = setCookie.split(";")[0].split("=").slice(1).join("=");
 		const res = await callback(`state=${stateToken}&code=the-code`, consented);
 		expect(res.status).toBe(400);
@@ -291,8 +291,8 @@ describe("GET /callback with the Google provider", () => {
 	});
 
 	const seedState = async () => {
-		const { stateToken } = await createOAuthState(reqInfo as never, kv as never);
-		const { setCookie } = await bindStateToSession(stateToken);
+		const stateToken = await createOAuthState(reqInfo as never, kv as never);
+		const setCookie = await bindStateToSession(stateToken);
 		return { stateToken, consented: setCookie.split(";")[0].split("=").slice(1).join("=") };
 	};
 
@@ -449,8 +449,8 @@ describe("the generic OIDC provider", () => {
 
 	it("502s on the callback when discovery fails, leaving the state unconsumed", async () => {
 		stubIdpDown();
-		const { stateToken } = await createOAuthState(reqInfo as never, kv as never);
-		const { setCookie } = await bindStateToSession(stateToken);
+		const stateToken = await createOAuthState(reqInfo as never, kv as never);
+		const setCookie = await bindStateToSession(stateToken);
 		const consented = setCookie.split(";")[0].split("=").slice(1).join("=");
 		const res = await OidcHandler.request(
 			`https://mcp.example/callback?state=${stateToken}&code=the-code`,
@@ -466,8 +466,8 @@ describe("the generic OIDC provider", () => {
 
 	it("completes the callback through the discovered token and userinfo endpoints", async () => {
 		const fetchMock = stubIdp({ email: "Alice@Example.com", email_verified: true, name: "Alice" });
-		const { stateToken } = await createOAuthState(reqInfo as never, kv as never);
-		const { setCookie } = await bindStateToSession(stateToken);
+		const stateToken = await createOAuthState(reqInfo as never, kv as never);
+		const setCookie = await bindStateToSession(stateToken);
 		const consented = setCookie.split(";")[0].split("=").slice(1).join("=");
 		const res = await OidcHandler.request(
 			`https://mcp.example/callback?state=${stateToken}&code=the-code`,

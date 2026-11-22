@@ -22,6 +22,9 @@ function isBlobEntry<T extends GitTreeEntry>(entry: T): entry is T & { path: str
 	return entry.type === "blob" && typeof entry.path === "string";
 }
 
+type ContentData = Awaited<ReturnType<Octokit["rest"]["repos"]["getContent"]>>["data"];
+type ContentFile = Extract<ContentData, { type: "file" }>;
+
 export class GitHubStorage implements VaultStorage {
 	private readonly octokit: Octokit;
 
@@ -29,10 +32,13 @@ export class GitHubStorage implements VaultStorage {
 		this.octokit = new Octokit({ auth: config.token });
 	}
 
+	private get repoRef(): { owner: string; repo: string } {
+		return { owner: this.config.owner, repo: this.config.repo };
+	}
+
 	async listFiles(): Promise<{ files: FileEntry[]; truncated: boolean }> {
 		const res = await this.octokit.rest.git.getTree({
-			owner: this.config.owner,
-			repo: this.config.repo,
+			...this.repoRef,
 			tree_sha: this.config.branch,
 			recursive: "true",
 		});
@@ -43,42 +49,23 @@ export class GitHubStorage implements VaultStorage {
 	}
 
 	async readFile(path: string): Promise<string> {
-		const res = await this.octokit.rest.repos
-			.getContent({
-				owner: this.config.owner,
-				repo: this.config.repo,
-				path,
-				ref: this.config.branch,
-			})
-			.catch((error: unknown) => {
-				if (isNotFound(error)) throw new VaultError(`Note not found: ${path}`);
-				throw error;
-			});
+		const file = await this.getFile(path);
+		if (file === undefined) throw new VaultError(`Note not found: ${path}`);
 
-		const data = res.data;
-		if (Array.isArray(data) || data.type !== "file") {
-			throw new VaultError(`Not a file: ${path}`);
-		}
-
-		if (data.encoding === "base64" && data.content) {
-			return decodeBase64Utf8(data.content);
+		if (file.encoding === "base64" && file.content) {
+			return decodeBase64Utf8(file.content);
 		}
 		// Files > 1MB come back with empty content; fall back to the blob API.
-		const blob = await this.octokit.rest.git.getBlob({
-			owner: this.config.owner,
-			repo: this.config.repo,
-			file_sha: data.sha,
-		});
+		const blob = await this.octokit.rest.git.getBlob({ ...this.repoRef, file_sha: file.sha });
 		return decodeBase64Utf8(blob.data.content);
 	}
 
 	async writeFile(path: string, content: string): Promise<{ created: boolean }> {
 		// GitHub's contents API needs the current blob sha to overwrite; its
 		// absence means the file does not exist yet and this is a create.
-		const sha = await this.existingFileSha(path);
+		const sha = (await this.getFile(path))?.sha;
 		await this.octokit.rest.repos.createOrUpdateFileContents({
-			owner: this.config.owner,
-			repo: this.config.repo,
+			...this.repoRef,
 			path,
 			message: `${sha ? "Update" : "Create"} ${path} via vault-mcp`,
 			content: encodeBase64Utf8(content),
@@ -89,14 +76,13 @@ export class GitHubStorage implements VaultStorage {
 	}
 
 	async deleteFile(path: string): Promise<boolean> {
-		const sha = await this.existingFileSha(path);
-		if (sha === undefined) return false;
+		const file = await this.getFile(path);
+		if (file === undefined) return false;
 		await this.octokit.rest.repos.deleteFile({
-			owner: this.config.owner,
-			repo: this.config.repo,
+			...this.repoRef,
 			path,
 			message: `Delete ${path} via vault-mcp`,
-			sha,
+			sha: file.sha,
 			branch: this.config.branch,
 		});
 		return true;
@@ -118,23 +104,20 @@ export class GitHubStorage implements VaultStorage {
 		}));
 	}
 
-	private async existingFileSha(path: string): Promise<string | undefined> {
-		try {
-			const res = await this.octokit.rest.repos.getContent({
-				owner: this.config.owner,
-				repo: this.config.repo,
-				path,
-				ref: this.config.branch,
+	/** The file at `path` on the branch, `undefined` if absent; throws if it is a directory or symlink. */
+	private async getFile(path: string): Promise<ContentFile | undefined> {
+		const res = await this.octokit.rest.repos
+			.getContent({ ...this.repoRef, path, ref: this.config.branch })
+			.catch((error: unknown) => {
+				if (isNotFound(error)) return undefined;
+				throw error;
 			});
-			const data = res.data;
-			if (Array.isArray(data) || data.type !== "file") {
-				throw new VaultError(`Not a file: ${path}`);
-			}
-			return data.sha;
-		} catch (error) {
-			if (isNotFound(error)) return undefined;
-			throw error;
+		if (res === undefined) return undefined;
+		const data = res.data;
+		if (Array.isArray(data) || data.type !== "file") {
+			throw new VaultError(`Not a file: ${path}`);
 		}
+		return data;
 	}
 }
 

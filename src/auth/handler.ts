@@ -2,7 +2,12 @@ import type { AuthRequest, OAuthHelpers } from "@cloudflare/workers-oauth-provid
 import { Hono } from "hono";
 import { z } from "zod";
 import { renderApprovalDialog } from "./approval-dialog";
-import { type UpstreamProvider, UpstreamIdentityError } from "./providers";
+import {
+	type OAuthEndpoints,
+	type UpstreamIdentity,
+	type UpstreamProvider,
+	UpstreamIdentityError,
+} from "./providers";
 import type { Props } from "./props";
 import {
 	addApprovedClient,
@@ -18,6 +23,8 @@ import { fetchUpstreamAuthToken, getUpstreamAuthorizeUrl, redirectResponse } fro
 
 type AuthEnv = Env & { OAUTH_PROVIDER: OAuthHelpers };
 
+const CALLBACK_PATH = "/callback";
+
 /**
  * The login flow between the MCP client and the upstream identity provider.
  * Everything here is provider-agnostic; `provider` supplies the endpoints,
@@ -32,7 +39,7 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 	// one-shot state on the callback.
 	const resolveEndpoints = async (
 		env: Env,
-	): Promise<[Awaited<ReturnType<UpstreamProvider["endpoints"]>>, null] | [null, Response]> => {
+	): Promise<[OAuthEndpoints, null] | [null, Response]> => {
 		try {
 			return [await provider.endpoints(env), null];
 		} catch (error) {
@@ -41,23 +48,36 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 		}
 	};
 
-	const redirectToUpstream = (
-		env: Env,
+	/**
+	 * Hands an approved request to the upstream IdP: stores one-shot state, binds
+	 * it to this browser, and redirects. `cookies` are extra Set-Cookie values to
+	 * send alongside the session binding.
+	 */
+	const startUpstreamFlow = async (
+		env: AuthEnv,
 		request: Request,
-		authorizeUrl: string,
-		stateToken: string,
-		headers: HeadersInit,
-	) =>
-		redirectResponse(
+		oauthReqInfo: AuthRequest,
+		cookies: string[] = [],
+	): Promise<Response> => {
+		const [endpoints, unavailable] = await resolveEndpoints(env);
+		if (unavailable) return unavailable;
+
+		const stateToken = await createOAuthState(oauthReqInfo, env.OAUTH_KV);
+		const headers = new Headers();
+		for (const cookie of [...cookies, await bindStateToSession(stateToken)]) {
+			headers.append("Set-Cookie", cookie);
+		}
+		return redirectResponse(
 			getUpstreamAuthorizeUrl({
 				client_id: provider.credentials(env).clientId,
-				redirect_uri: new URL("/callback", request.url).href,
+				redirect_uri: new URL(CALLBACK_PATH, request.url).href,
 				scope: provider.scope,
 				state: stateToken,
-				upstream_url: authorizeUrl,
+				upstream_url: endpoints.authorizeUrl,
 			}),
 			headers,
 		);
+	};
 
 	app.get("/authorize", async (c) => {
 		const oauthReqInfo = await c.env.OAUTH_PROVIDER.parseAuthRequest(c.req.raw);
@@ -68,13 +88,7 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 
 		// Already approved: skip the dialog, but still bind state to the session.
 		if (await isClientApproved(c.req.raw, clientId, c.env.COOKIE_ENCRYPTION_KEY)) {
-			const [endpoints, unavailable] = await resolveEndpoints(c.env);
-			if (unavailable) return unavailable;
-			const { stateToken } = await createOAuthState(oauthReqInfo, c.env.OAUTH_KV);
-			const { setCookie: sessionBindingCookie } = await bindStateToSession(stateToken);
-			return redirectToUpstream(c.env, c.req.raw, endpoints.authorizeUrl, stateToken, {
-				"Set-Cookie": sessionBindingCookie,
-			});
+			return startUpstreamFlow(c.env, c.req.raw, oauthReqInfo);
 		}
 
 		const { token: csrfToken, setCookie } = generateCSRFProtection();
@@ -113,23 +127,13 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 				return c.text("Invalid request", 400);
 			}
 
-			const [endpoints, unavailable] = await resolveEndpoints(c.env);
-			if (unavailable) return unavailable;
-
 			const approvedClientCookie = await addApprovedClient(
 				c.req.raw,
 				state.oauthReqInfo.clientId,
 				c.env.COOKIE_ENCRYPTION_KEY,
 			);
-
-			const { stateToken } = await createOAuthState(state.oauthReqInfo, c.env.OAUTH_KV);
-			const { setCookie: sessionBindingCookie } = await bindStateToSession(stateToken);
-
-			const headers = new Headers();
-			headers.append("Set-Cookie", approvedClientCookie);
-			headers.append("Set-Cookie", sessionBindingCookie);
-
-			return redirectToUpstream(c.env, c.req.raw, endpoints.authorizeUrl, stateToken, headers);
+			// `await` keeps a KV failure inside this try so it maps to the 500 below.
+			return await startUpstreamFlow(c.env, c.req.raw, state.oauthReqInfo, [approvedClientCookie]);
 		} catch (error) {
 			console.error("POST /authorize error:", error);
 			if (error instanceof OAuthError) {
@@ -146,7 +150,7 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 	 * the client's own callback. validateOAuthState guards against CSRF (see
 	 * session.ts).
 	 */
-	app.get("/callback", async (c) => {
+	app.get(CALLBACK_PATH, async (c) => {
 		const [endpoints, unavailable] = await resolveEndpoints(c.env);
 		if (unavailable) return unavailable;
 
@@ -180,12 +184,12 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 			client_id: clientId,
 			client_secret: clientSecret,
 			code: codeResult.data,
-			redirect_uri: new URL("/callback", c.req.url).href,
+			redirect_uri: new URL(CALLBACK_PATH, c.req.url).href,
 			upstream_url: endpoints.tokenUrl,
 		});
 		if (errResponse) return errResponse;
 
-		let identity: Awaited<ReturnType<UpstreamProvider["fetchIdentity"]>>;
+		let identity: UpstreamIdentity;
 		try {
 			identity = await provider.fetchIdentity(accessToken, c.env);
 		} catch (error) {
@@ -206,16 +210,13 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 				email,
 				login,
 				name,
-			} as Props,
+			} satisfies Props,
 			request: oauthReqInfo,
 			scope: oauthReqInfo.scope,
 			userId: login,
 		});
 
-		return new Response(null, {
-			status: 302,
-			headers: { Location: redirectTo, "Set-Cookie": clearSessionCookie },
-		});
+		return redirectResponse(redirectTo, { "Set-Cookie": clearSessionCookie });
 	});
 
 	return app;

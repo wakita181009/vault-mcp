@@ -1,8 +1,8 @@
 import { authProviderFromEnv } from "./auth/providers";
 import type { Props } from "./auth/props";
 
-/** A minimal fetch handler: the gate's own shape and the inner one it wraps. */
-type ApiHandler = {
+/** A minimal fetch handler: the gate's own shape, the inner one it wraps, and what OAuthProvider serves. */
+export type ApiHandler = {
 	fetch(request: Request, env: Env, ctx: ExecutionContext): Response | Promise<Response>;
 };
 

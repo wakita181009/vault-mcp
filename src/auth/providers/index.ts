@@ -1,10 +1,11 @@
+import { invalidEnvError } from "../../env-error";
 import type { AuthProviderName } from "./schema";
 import { githubProvider } from "./github";
 import { googleProvider } from "./google";
 import { oidcProvider } from "./oidc";
 import type { UpstreamProvider } from "./types";
 
-export type { UpstreamIdentity, UpstreamProvider } from "./types";
+export type { OAuthEndpoints, UpstreamIdentity, UpstreamProvider } from "./types";
 export { UpstreamIdentityError } from "./types";
 
 const PROVIDERS: Record<AuthProviderName, UpstreamProvider> = {
@@ -26,9 +27,9 @@ export function authProviderFromEnv(env: Pick<Env, "AUTH_PROVIDER">): UpstreamPr
 	// `hasOwn` rather than an index lookup so "constructor" and friends are
 	// rejected with the same message as any other unknown value.
 	if (!Object.hasOwn(PROVIDERS, name)) {
-		throw new Error(
-			`Invalid Worker environment:\n  - AUTH_PROVIDER: expected one of ${Object.keys(PROVIDERS).join(", ")}`,
-		);
+		throw invalidEnvError([
+			{ key: "AUTH_PROVIDER", message: `expected one of ${Object.keys(PROVIDERS).join(", ")}` },
+		]);
 	}
 	return PROVIDERS[name as AuthProviderName];
 }

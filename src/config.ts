@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { type AuthEnvConfig, authEnvSchema } from "./auth/providers/schema";
+import { invalidEnvError } from "./env-error";
 import { type StorageEnvConfig, storageEnvSchema } from "./storage/schema";
 
 /**
@@ -59,11 +60,11 @@ export function parseEnv(env: Env): VaultEnvConfig {
 	] as const;
 	const [common, auth, storage] = results;
 	if (!common.success || !auth.success || !storage.success) {
-		const issues = results
-			.flatMap((result) => result.error?.issues ?? [])
-			.map((issue) => `  - ${issue.path.join(".") || "(root)"}: ${issue.message}`)
-			.join("\n");
-		throw new Error(`Invalid Worker environment:\n${issues}`);
+		throw invalidEnvError(
+			results
+				.flatMap((result) => result.error?.issues ?? [])
+				.map((issue) => ({ key: issue.path.join(".") || "(root)", message: issue.message })),
+		);
 	}
 	return { ...common.data, ...auth.data, ...storage.data };
 }
