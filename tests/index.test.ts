@@ -39,17 +39,22 @@ import worker, { VaultMCP } from "../src/index";
 import { vaultClientFromEnv } from "../src/vault";
 
 type ToolCallback = (args: Record<string, unknown>) => Promise<unknown>;
+type ToolConfig = { title?: string; annotations?: Record<string, boolean> };
 
 const env = { VAULT_OWNER: "o" } as unknown as Env;
 const ctx = {} as unknown as ExecutionContext;
 
 const registeredTools = async () => {
-	const tool = vi.spyOn(McpServer.prototype, "tool");
+	const register = vi.spyOn(McpServer.prototype, "registerTool");
 	const agent = new VaultMCP(ctx as never, env);
 	await agent.init();
-	const entries = tool.mock.calls.map((call) => [call[0], call.at(-1) as ToolCallback] as const);
-	tool.mockRestore();
-	return { agent, tools: new Map(entries) };
+	const calls = register.mock.calls as unknown as [string, ToolConfig, ToolCallback][];
+	register.mockRestore();
+	return {
+		agent,
+		tools: new Map(calls.map(([name, , cb]) => [name, cb])),
+		configs: new Map(calls.map(([name, config]) => [name, config])),
+	};
 };
 
 // Clear per-test mocks only: `McpAgent.serve` is called once at module load
@@ -71,6 +76,17 @@ describe("VaultMCP", () => {
 			"delete_note",
 			"search_notes",
 		]);
+	});
+
+	it("marks reads read-only, mutations idempotent (destructive by default), all closed-world", async () => {
+		const { configs } = await registeredTools();
+		for (const name of ["list_notes", "read_note", "search_notes"]) {
+			expect(configs.get(name)?.annotations).toEqual({ readOnlyHint: true, openWorldHint: false });
+		}
+		for (const name of ["write_note", "delete_note"]) {
+			expect(configs.get(name)?.annotations).toEqual({ idempotentHint: true, openWorldHint: false });
+		}
+		expect([...configs.values()].every((config) => config.title)).toBe(true);
 	});
 
 	it("routes each tool call to the vault client with its arguments", async () => {
