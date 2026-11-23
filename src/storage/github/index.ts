@@ -17,7 +17,6 @@ export type GitHubStorageConfig = {
 
 type GitTreeEntry = { path?: string; type?: string; size?: number };
 
-/** Narrows a git tree entry to a blob (file) with a definite string path. */
 function isBlobEntry<T extends GitTreeEntry>(entry: T): entry is T & { path: string } {
 	return entry.type === "blob" && typeof entry.path === "string";
 }
@@ -145,7 +144,6 @@ function encodeBase64Utf8(text: string): string {
 	return btoa(binary);
 }
 
-/** Whether an Octokit error is a 404 (file not found) rather than a real failure. */
 function isNotFound(error: unknown): boolean {
 	return (
 		typeof error === "object" && error !== null && (error as { status?: number }).status === 404

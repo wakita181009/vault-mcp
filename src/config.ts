@@ -39,16 +39,11 @@ export const commonEnvSchema = z.object({
 	VAULT_DENIED_PREFIXES: z.string().default(DEFAULT_DENIED_PREFIXES),
 });
 
-/** Validated env config with defaults applied — the return type of `parseEnv`. */
 export type VaultEnvConfig = z.infer<typeof commonEnvSchema> & AuthEnvConfig & StorageEnvConfig;
 
 /**
- * Validate the Worker env, throwing an aggregated, secret-safe error if any
- * required key is missing or malformed. Returns the parsed config with defaults
- * applied (so optional overrides resolve to their defaults), which callers use
- * directly: `const config = parseEnv(rawEnv)`.
- *
- * zod's default messages never echo the offending value, so nothing sensitive
+ * Throws one aggregated error listing every missing or malformed key. zod's
+ * default messages never echo the offending value, so nothing sensitive
  * reaches the logs.
  */
 export function parseEnv(env: Env): VaultEnvConfig {

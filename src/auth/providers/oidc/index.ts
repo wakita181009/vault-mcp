@@ -46,7 +46,6 @@ export function createOidcProvider(preset: OidcPreset): UpstreamProvider {
 			return { authorizeUrl, tokenUrl };
 		},
 		credentials: preset.credentials,
-		// Emails are case-insensitive, so both sides are lowercased for the match.
 		allowedLogins: (env) => preset.allowedLogins(env).map((email) => email.toLowerCase()),
 		fetchIdentity: async (accessToken, env) => {
 			const label = preset.displayName(env);

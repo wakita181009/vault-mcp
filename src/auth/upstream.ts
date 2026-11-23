@@ -38,12 +38,8 @@ export function redirectResponse(location: string, headers: HeadersInit = {}): R
 const tokenResponseSchema = z.object({ access_token: z.string().min(1) });
 
 /**
- * Exchanges an authorization code for an access token. Returns `[token, null]`
- * on success, `[null, errorResponse]` on failure.
- *
- * The request is the standard OAuth 2.0 code grant; the `Accept` header makes
- * GitHub answer in JSON like every other provider (its default is
- * form-encoded), so one parser covers them all.
+ * The `Accept` header makes GitHub answer in JSON like every other provider
+ * (its default is form-encoded), so one parser covers them all.
  */
 export async function fetchUpstreamAuthToken({
 	client_id,

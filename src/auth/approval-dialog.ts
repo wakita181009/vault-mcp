@@ -1,8 +1,5 @@
-// OAuth approval dialog rendering and the HTML-sanitization helpers it relies on.
-
 import type { ClientInfo } from "@cloudflare/workers-oauth-provider";
 
-/** Escapes HTML-significant characters for safe interpolation into markup. */
 export function sanitizeText(text: string): string {
 	return text
 		.replace(/&/g, "&amp;")
@@ -61,7 +58,6 @@ export interface ApprovalDialogOptions {
 	setCookie: string;
 }
 
-/** Renders the OAuth authorization approval dialog, with a CSRF-protected approve form. */
 export function renderApprovalDialog(request: Request, options: ApprovalDialogOptions): Response {
 	const { client, server, state, csrfToken, setCookie } = options;
 
@@ -71,7 +67,6 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
 	const clientName = client?.clientName ? sanitizeText(client.clientName) : "Unknown MCP Client";
 	const serverDescription = server.description ? sanitizeText(server.description) : "";
 
-	// Validate URLs then HTML-escape for safe use in attributes
 	const logoUrl = server.logo ? sanitizeText(sanitizeUrl(server.logo)) : "";
 	const clientUri = client?.clientUri ? sanitizeText(sanitizeUrl(client.clientUri)) : "";
 	const policyUri = client?.policyUri ? sanitizeText(sanitizeUrl(client.policyUri)) : "";

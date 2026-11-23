@@ -1,6 +1,3 @@
-// OAuth helpers: CSRF protection, state creation/validation with session binding,
-// and the signed approved-clients cookie.
-
 import type { AuthRequest } from "@cloudflare/workers-oauth-provider";
 
 const CSRF_TOKEN_COOKIE = "__Host-CSRF_TOKEN";
@@ -18,7 +15,6 @@ function hostCookie(name: string, value: string, maxAgeSeconds: number): string 
 
 const stateKey = (stateToken: string) => `oauth:state:${stateToken}`;
 
-/** OAuth 2.1 error carrying a standard error code and a JSON error response. */
 export class OAuthError extends Error {
 	constructor(
 		public code: string,
@@ -45,7 +41,6 @@ export class OAuthError extends Error {
 
 export interface ValidateStateResult {
 	oauthReqInfo: AuthRequest;
-	/** Set-Cookie value that clears the session-binding cookie. */
 	clearCookie: string;
 }
 
@@ -54,7 +49,6 @@ export interface CSRFProtectionResult {
 	setCookie: string;
 }
 
-/** Generates a CSRF token and the matching short-lived cookie for the approval form. */
 export function generateCSRFProtection(): CSRFProtectionResult {
 	const token = crypto.randomUUID();
 	return { token, setCookie: hostCookie(CSRF_TOKEN_COOKIE, token, FLOW_TTL_SECONDS) };
@@ -81,7 +75,6 @@ export function validateCSRFToken(formData: FormData, request: Request): void {
 	}
 }
 
-/** Stores the OAuth request in KV (one-time use, TTL-bounded) and returns its fresh state token. */
 export async function createOAuthState(
 	oauthReqInfo: AuthRequest,
 	kv: KVNamespace,
@@ -149,14 +142,12 @@ export async function validateOAuthState(
 		throw new OAuthError("server_error", "Invalid state data", 500);
 	}
 
-	// State and its cookie are one-time use — consume both.
 	await kv.delete(stateKey(stateFromQuery));
 	const clearCookie = hostCookie(CONSENTED_STATE_COOKIE, "", 0);
 
 	return { oauthReqInfo, clearCookie };
 }
 
-/** Whether clientId is in the user's signed approved-clients cookie. */
 export async function isClientApproved(
 	request: Request,
 	clientId: string,
@@ -166,7 +157,6 @@ export async function isClientApproved(
 	return approvedClients?.includes(clientId) ?? false;
 }
 
-/** Adds clientId to the approved-clients list and returns the updated signed Set-Cookie. */
 export async function addApprovedClient(
 	request: Request,
 	clientId: string,
@@ -193,7 +183,6 @@ function getCookie(request: Request, name: string): string | null {
 	return target ? target.substring(name.length + 1) : null;
 }
 
-/** Computes the SHA-256 of the input and returns it as a lowercase hex string. */
 async function sha256Hex(input: string): Promise<string> {
 	const data = new TextEncoder().encode(input);
 	return toHex(await crypto.subtle.digest("SHA-256", data));

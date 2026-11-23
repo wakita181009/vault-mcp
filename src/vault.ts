@@ -32,7 +32,6 @@ export type SearchHit = ContentMatch;
 
 const NOTE_EXTENSIONS = [".md", ".markdown"];
 
-/** Validate the Worker env (fail fast on misconfig) and wire the configured backend. */
 export function vaultClientFromEnv(env: Env): VaultClient {
 	const config = parseEnv(env);
 	const storage = storageFromEnv(config, env);
@@ -42,7 +41,6 @@ export function vaultClientFromEnv(env: Env): VaultClient {
 	});
 }
 
-/** Whether a vault path may be exposed given the allow/deny policy. */
 export function isPathVisible(path: string, config: VaultConfig): boolean {
 	const p = normalizePath(path);
 	if (p === null) return false;
@@ -88,10 +86,6 @@ export class VaultClient {
 		private readonly config: VaultConfig,
 	) {}
 
-	/**
-	 * List notes (markdown files) under the visible portion of the vault.
-	 * `dir`, when provided, further scopes the listing to that subtree.
-	 */
 	async listNotes(dir?: string): Promise<{ notes: NoteEntry[]; truncated: boolean }> {
 		const dirPrefix = dir ? this.guardReadable(dir) : null;
 		const { files, truncated } = await this.storage.listFiles();
@@ -111,24 +105,12 @@ export class VaultClient {
 		return { path: normalized, content };
 	}
 
-	/**
-	 * Create a new note or overwrite an existing one. Enforces the same path
-	 * guards as reads (traversal/absolute rejection, allow/deny policy) and only
-	 * accepts markdown paths, so writes can never reach `.git/`, `.obsidian/`, or
-	 * any non-note file. Returns whether the note was created (vs. updated).
-	 */
 	async writeNote(path: string, content: string): Promise<{ path: string; created: boolean }> {
 		const normalized = this.guardMutable(path);
 		const { created } = await this.storage.writeFile(normalized, content);
 		return { path: normalized, created };
 	}
 
-	/**
-	 * Delete an existing note. Enforces the same path guards as writes
-	 * (traversal/absolute rejection, note-extension check, allow/deny policy), so
-	 * a delete can never reach `.git/`, `.obsidian/`, agent dirs, or any non-note
-	 * file.
-	 */
 	async deleteNote(path: string): Promise<{ path: string }> {
 		const normalized = this.guardMutable(path);
 		const found = await this.storage.deleteFile(normalized);
@@ -139,9 +121,9 @@ export class VaultClient {
 	}
 
 	/**
-	 * Search notes. Combines the backend's content search with filename matching
-	 * from the listing so results are useful even when the backend's index is
-	 * cold, unavailable, or absent.
+	 * Content search is combined with filename matching from the listing so
+	 * results are useful even when the backend's index is cold, unavailable, or
+	 * absent.
 	 *
 	 * The vault is listed at most once per search: filename matching and a
 	 * scanning backend share one memoized listing, because on R2 every listed
