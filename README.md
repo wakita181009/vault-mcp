@@ -4,13 +4,14 @@
 [![codecov](https://codecov.io/gh/wakita181009/vault-mcp/branch/main/graph/badge.svg)](https://codecov.io/gh/wakita181009/vault-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Authenticated **remote MCP server** on Cloudflare Workers that exposes a private, GitHub-hosted
-Obsidian vault to both **claude.ai** (Web / Desktop / iPhone) and **Claude Code** — one free
-deployment serving every Claude surface. It reads notes, creates/overwrites them, and deletes
-them; it never renames or moves. Every mutation is a git commit, so deletes stay revertable.
+Authenticated **remote MCP server** on Cloudflare Workers that exposes a private Obsidian vault —
+hosted in a GitHub repo (default) or a Cloudflare R2 bucket — to both **claude.ai** (Web / Desktop /
+iPhone) and **Claude Code** — one free deployment serving every Claude surface. It reads notes,
+creates/overwrites them, and deletes them; it never renames or moves. On GitHub every mutation is a
+git commit, so overwrites and deletes stay revertable; R2 keeps no history.
 
-It works against the vault through the GitHub API, so the source repo can stay private and there is
-no always-on machine to maintain. Deploy your own instance with C3 (one command) or clone it
+It works against the vault through the GitHub API or an R2 binding, so the vault can stay private
+and there is no always-on machine to maintain. Deploy your own instance with C3 (one command) or clone it
 manually — both are covered below. Your vault target is set via secrets, so the committed config
 ships generic.
 
