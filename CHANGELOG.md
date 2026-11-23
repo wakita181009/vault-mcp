@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/wakita181009/vault-mcp/compare/v0.5.2...v0.6.0) (2026-11-23)
+
+
+### Features
+
+* add S3-compatible storage backend ([#100](https://github.com/wakita181009/vault-mcp/issues/100)) ([eff94d6](https://github.com/wakita181009/vault-mcp/commit/eff94d64034df87827f07891d50a28dfc5a7daad))
+
 ## [0.5.2](https://github.com/wakita181009/vault-mcp/compare/v0.5.1...v0.5.2) (2026-11-23)
 
 
