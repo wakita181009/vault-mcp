@@ -10,7 +10,6 @@ import {
 	validateOAuthState,
 } from "../../src/auth/session";
 
-/** In-memory KVNamespace stand-in covering the get/put/delete surface used here. */
 const makeKV = () => {
 	const store = new Map<string, string>();
 	return {
@@ -38,7 +37,6 @@ const callbackRequest = (state: string, consentedHash: string | null): Request =
 
 const SECRET = "test-cookie-signing-secret";
 
-/** Extracts the `name=value` pair (drops attributes) from a Set-Cookie string. */
 const cookiePair = (setCookie: string): string => setCookie.split(";")[0];
 
 const requestWithCookie = (cookie: string): Request =>

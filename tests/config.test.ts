@@ -17,7 +17,6 @@ function parse(overrides: Record<string, string> = {}) {
 	return parseEnv({ ...REQUIRED, ...overrides } as unknown as Parameters<typeof parseEnv>[0]);
 }
 
-/** The GitHub branch, narrowing on the storage discriminator first. */
 function branchOf(config: VaultEnvConfig): string | undefined {
 	return config.VAULT_STORAGE === "github" ? config.VAULT_BRANCH : undefined;
 }
