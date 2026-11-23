@@ -37,4 +37,9 @@ jobs:
           files: ./coverage/lcov.info
           fail_ci_if_error: false
 
+      # Production deploys ship the Vite bundle (zod-aot compiled), not wrangler's
+      # own bundle of src/index.ts. The build also writes the
+      # .wrangler/deploy/config.json redirect, so the dry run checks dist/.
+      - run: pnpm build
+
       - run: pnpm exec wrangler deploy --dry-run
