@@ -48,7 +48,8 @@ describe("search_notes input", () => {
 		expect(searchNotesInput.parse({ query: "q", limit: 1 }).limit).toBe(1);
 	});
 
-	it("rejects out-of-range, fractional, or missing-query input", () => {
+	it("rejects out-of-range, fractional, missing, or empty-query input", () => {
+		expect(searchNotesInput.safeParse({ query: "" }).success).toBe(false);
 		expect(searchNotesInput.safeParse({ query: "q", limit: 0 }).success).toBe(false);
 		expect(searchNotesInput.safeParse({ query: "q", limit: 31 }).success).toBe(false);
 		expect(searchNotesInput.safeParse({ query: "q", limit: 2.5 }).success).toBe(false);

@@ -159,7 +159,12 @@ export class VaultClient {
 		};
 
 		const [contentHits, filenameHits] = await Promise.all([
-			this.storage.searchContent(query, limit, visibleNotes).catch(() => [] as SearchHit[]),
+			this.storage.searchContent(query, limit, visibleNotes).catch((error: unknown) => {
+				// Degrade to filename-only results, but leave a trace: a rate limit or a
+				// revoked token otherwise looks exactly like "no content matches".
+				console.warn("Content search failed; returning filename matches only:", error);
+				return [] as SearchHit[];
+			}),
 			filenameMatches(query, visibleNotes()),
 		]);
 

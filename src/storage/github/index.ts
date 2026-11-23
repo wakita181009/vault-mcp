@@ -90,18 +90,24 @@ export class GitHubStorage implements VaultStorage {
 
 	/** GitHub code search (indexed, default branch only). */
 	async searchContent(query: string, limit: number): Promise<ContentMatch[]> {
+		const vaultRepo = `${this.config.owner}/${this.config.repo}`.toLowerCase();
 		const res = await this.octokit.rest.search.code({
-			q: `${query} repo:${this.config.owner}/${this.config.repo}`,
+			q: `${query} repo:${vaultRepo}`,
 			per_page: Math.min(limit, 30),
 			mediaType: { format: "text-match" },
 		});
 
-		return res.data.items.map((item) => ({
-			path: item.path,
-			fragments: (item.text_matches ?? [])
-				.map((m) => m.fragment)
-				.filter((f): f is string => typeof f === "string"),
-		}));
+		// Repeated `repo:` qualifiers are OR'ed, so a query carrying its own
+		// `repo:other/x` pulls in foreign (public) hits whose paths would pass the
+		// path policy and be served as vault notes. Owner/repo names are case-insensitive.
+		return res.data.items
+			.filter((item) => item.repository.full_name.toLowerCase() === vaultRepo)
+			.map((item) => ({
+				path: item.path,
+				fragments: (item.text_matches ?? [])
+					.map((m) => m.fragment)
+					.filter((f): f is string => typeof f === "string"),
+			}));
 	}
 
 	/** The file at `path` on the branch, `undefined` if absent; throws if it is a directory or symlink. */
