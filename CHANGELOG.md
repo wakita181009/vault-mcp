@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.2](https://github.com/wakita181009/vault-mcp/compare/v0.5.1...v0.5.2) (2026-11-23)
+
+
+### Bug Fixes
+
+* harden search against foreign-repo hits and empty queries ([#91](https://github.com/wakita181009/vault-mcp/issues/91)) ([ca5ba3c](https://github.com/wakita181009/vault-mcp/commit/ca5ba3cf84c975377f5a8a98d774ed816f63dad1))
+* stop storing the upstream token and leaking 500 details ([#92](https://github.com/wakita181009/vault-mcp/issues/92)) ([d27a808](https://github.com/wakita181009/vault-mcp/commit/d27a8081857dfaf8cf081db6eecce6bf04ede07f))
+
 ## [0.5.1](https://github.com/wakita181009/vault-mcp/compare/v0.5.0...v0.5.1) (2026-11-22)
 
 
