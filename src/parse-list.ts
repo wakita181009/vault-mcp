@@ -1,7 +1,6 @@
 /**
- * Splits a comma-separated env value into trimmed, non-empty entries. Kept in
- * its own module so the auth providers can use it without importing `vault.ts`
- * (and, through it, the storage backends).
+ * Kept in its own module so the auth providers can use it without importing
+ * `vault.ts` (and, through it, the storage backends).
  */
 export function parseList(raw: string | undefined): string[] {
 	if (!raw) return [];

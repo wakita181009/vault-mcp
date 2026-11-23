@@ -1,16 +1,12 @@
 import { VaultError } from "./vault";
 import type { VaultClient } from "./vault";
 
-/** The read subset of VaultClient the read tool handlers depend on. */
 export type VaultReader = Pick<VaultClient, "listNotes" | "readNote" | "searchNotes">;
 
-/** The write subset of VaultClient the write tool handler depends on. */
 export type VaultWriter = Pick<VaultClient, "writeNote">;
 
-/** The delete subset of VaultClient the delete tool handler depends on. */
 export type VaultDeleter = Pick<VaultClient, "deleteNote">;
 
-/** MCP tool result: text content, optionally flagged as an error. */
 export type ToolResult = {
 	content: { type: "text"; text: string }[];
 	isError?: boolean;

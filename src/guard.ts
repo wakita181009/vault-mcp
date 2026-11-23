@@ -1,12 +1,10 @@
 import { authProviderFromEnv } from "./auth/providers";
 import type { Props } from "./auth/props";
 
-/** A minimal fetch handler: the gate's own shape, the inner one it wraps, and what OAuthProvider serves. */
 export type ApiHandler = {
 	fetch(request: Request, env: Env, ctx: ExecutionContext): Response | Promise<Response>;
 };
 
-/** Whether a login identity is present and on the configured allowlist. */
 export function isLoginAllowed(login: string | undefined, allowedLogins: string[]): boolean {
 	return login !== undefined && allowedLogins.includes(login);
 }

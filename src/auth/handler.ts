@@ -48,11 +48,7 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 		}
 	};
 
-	/**
-	 * Hands an approved request to the upstream IdP: stores one-shot state, binds
-	 * it to this browser, and redirects. `cookies` are extra Set-Cookie values to
-	 * send alongside the session binding.
-	 */
+	/** `cookies` are extra Set-Cookie values to send alongside the session binding. */
 	const startUpstreamFlow = async (
 		env: AuthEnv,
 		request: Request,
@@ -144,12 +140,6 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 		}
 	});
 
-	/**
-	 * Upstream OAuth callback: exchanges the code for an access token, resolves
-	 * the user's identity, stores it on the client's `props`, and redirects to
-	 * the client's own callback. validateOAuthState guards against CSRF (see
-	 * session.ts).
-	 */
 	app.get(CALLBACK_PATH, async (c) => {
 		const [endpoints, unavailable] = await resolveEndpoints(c.env);
 		if (unavailable) return unavailable;
@@ -172,8 +162,6 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 			return c.text("Invalid OAuth request data", 400);
 		}
 
-		// The provider sends ?code=... on a successful authorization; reject early
-		// at the boundary if it is missing or empty instead of passing undefined downstream.
 		const codeResult = z.string().min(1).safeParse(c.req.query("code"));
 		if (!codeResult.success) {
 			return c.text("Missing authorization code", 400);
