@@ -17,11 +17,11 @@ export const listNotesInput = z.object({
 });
 
 export const readNoteInput = z.object({
-	path: z.string().describe("Repo-relative path to the note, e.g. 'user_profile/identity.md'."),
+	path: z.string().describe("Vault-relative path to the note, e.g. 'user_profile/identity.md'."),
 });
 
 export const writeNoteInput = z.object({
-	path: z.string().describe("Repo-relative path to the note, e.g. 'user_profile/identity.md'."),
+	path: z.string().describe("Vault-relative path to the note, e.g. 'user_profile/identity.md'."),
 	content: z
 		.string()
 		.describe("Full markdown content to write. Overwrites the note if it already exists."),
@@ -30,7 +30,7 @@ export const writeNoteInput = z.object({
 export const deleteNoteInput = z.object({
 	path: z
 		.string()
-		.describe("Repo-relative path to the note to delete, e.g. 'user_profile/identity.md'."),
+		.describe("Vault-relative path to the note to delete, e.g. 'user_profile/identity.md'."),
 });
 
 export const searchNotesInput = z.object({
