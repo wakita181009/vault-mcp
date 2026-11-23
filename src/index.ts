@@ -22,14 +22,10 @@ import { version } from "../package.json";
 
 // Every tool touches only the one configured vault, never the open world.
 const READ_ONLY = { readOnlyHint: true, openWorldHint: false } as const;
-// Overwrite and delete both lose the prior content (unrecoverable on R2), so
-// clients should confirm; repeating the same call changes nothing further.
-const DESTRUCTIVE = {
-	readOnlyHint: false,
-	destructiveHint: true,
-	idempotentHint: true,
-	openWorldHint: false,
-} as const;
+// Only hints that differ from the spec defaults: absent readOnlyHint and
+// destructiveHint already mean "may destroy", so clients still confirm. Repeating
+// the same write or delete changes nothing further.
+const MUTATING = { idempotentHint: true, openWorldHint: false } as const;
 
 export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 	server = new McpServer({
@@ -69,7 +65,7 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 				description:
 					"Create a new note or overwrite an existing one at a vault-relative path. Markdown files only.",
 				inputSchema: writeNoteInput.shape,
-				annotations: DESTRUCTIVE,
+				annotations: MUTATING,
 			},
 			({ path, content }) => writeNoteHandler(client, path, content),
 		);
@@ -81,7 +77,7 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 				description:
 					"Delete an existing note by its vault-relative path. Markdown files only; never touches non-note files.",
 				inputSchema: deleteNoteInput.shape,
-				annotations: DESTRUCTIVE,
+				annotations: MUTATING,
 			},
 			({ path }) => deleteNoteHandler(client, path),
 		);

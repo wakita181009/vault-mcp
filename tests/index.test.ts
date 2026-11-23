@@ -78,18 +78,13 @@ describe("VaultMCP", () => {
 		]);
 	});
 
-	it("marks reads read-only and mutations destructive, all closed-world", async () => {
+	it("marks reads read-only, mutations idempotent (destructive by default), all closed-world", async () => {
 		const { configs } = await registeredTools();
 		for (const name of ["list_notes", "read_note", "search_notes"]) {
 			expect(configs.get(name)?.annotations).toEqual({ readOnlyHint: true, openWorldHint: false });
 		}
 		for (const name of ["write_note", "delete_note"]) {
-			expect(configs.get(name)?.annotations).toEqual({
-				readOnlyHint: false,
-				destructiveHint: true,
-				idempotentHint: true,
-				openWorldHint: false,
-			});
+			expect(configs.get(name)?.annotations).toEqual({ idempotentHint: true, openWorldHint: false });
 		}
 		expect([...configs.values()].every((config) => config.title)).toBe(true);
 	});
