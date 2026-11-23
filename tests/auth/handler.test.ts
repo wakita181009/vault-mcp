@@ -162,22 +162,15 @@ describe("POST /authorize", () => {
 		expect(await res.text()).toContain("Invalid request");
 	});
 
-	it("500s with the message when state storage fails", async () => {
-		vi.spyOn(console, "error").mockImplementation(() => {});
-		kv.put.mockRejectedValueOnce(new Error("kv down"));
+	it("500s with a generic body when state storage fails, logging the cause", async () => {
+		const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+		const failure = new Error("kv down");
+		kv.put.mockRejectedValueOnce(failure);
 		const { token, setCookie } = generateCSRFProtection();
 		const res = await postForm({ csrf_token: token, state: validState() }, setCookie.split(";")[0]);
 		expect(res.status).toBe(500);
-		expect(await res.text()).toContain("kv down");
-	});
-
-	it("stringifies a non-Error throw in the 500 message", async () => {
-		vi.spyOn(console, "error").mockImplementation(() => {});
-		kv.put.mockRejectedValueOnce("plain string failure");
-		const { token, setCookie } = generateCSRFProtection();
-		const res = await postForm({ csrf_token: token, state: validState() }, setCookie.split(";")[0]);
-		expect(res.status).toBe(500);
-		expect(await res.text()).toContain("plain string failure");
+		expect(await res.text()).toBe("Internal server error");
+		expect(logged).toHaveBeenCalledWith(expect.any(String), failure);
 	});
 
 	it("returns the OAuthError response when CSRF validation fails", async () => {
@@ -213,7 +206,11 @@ describe("GET /callback", () => {
 		const res = await callback(`state=${stateToken}&code=the-code`, consented);
 		expect(res.status).toBe(302);
 		expect(res.headers.get("Location")).toBe("https://claude.ai/cb?code=granted");
-		expect(oauthProvider.completeAuthorization).toHaveBeenCalled();
+		expect(oauthProvider.completeAuthorization).toHaveBeenCalledWith(
+			expect.objectContaining({
+				props: { email: "alice@example.com", login: "alice", name: "Alice" },
+			}),
+		);
 		vi.unstubAllGlobals();
 	});
 

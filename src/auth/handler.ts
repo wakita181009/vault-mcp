@@ -139,8 +139,8 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 			if (error instanceof OAuthError) {
 				return error.toResponse();
 			}
-			const message = error instanceof Error ? error.message : String(error);
-			return c.text(`Internal server error: ${message}`, 500);
+			// The details are in the log above; the browser gets nothing internal.
+			return c.text("Internal server error", 500);
 		}
 	});
 
@@ -206,7 +206,6 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 			},
 			// Surfaced as `this.props` on VaultMCP.
 			props: {
-				accessToken,
 				email,
 				login,
 				name,
