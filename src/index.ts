@@ -87,7 +87,7 @@ export class VaultMCP extends McpAgent<Env, Record<string, never>, Props> {
 			{
 				title: "Search notes",
 				description:
-					"Search notes by content and filename. Returns matching paths with snippets. Content search may not cover every note (index lag on GitHub; a bounded scan of the most recently changed notes on R2), so a miss is not proof of absence.",
+					"Search notes by content and filename. Returns matching paths with snippets. Content search may not cover every note (index lag on GitHub; a bounded scan of the most recently changed notes on R2/S3), so a miss is not proof of absence.",
 				inputSchema: searchNotesInput.shape,
 				annotations: READ_ONLY,
 			},

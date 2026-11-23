@@ -52,6 +52,13 @@ describe("normalizePath", () => {
 		expect(normalizePath("a/..")).toBeNull();
 	});
 
+	it("rejects any `.` path segment, which URL-based backends would collapse", () => {
+		expect(normalizePath("./.obsidian/x.md")).toBeNull();
+		expect(normalizePath("notes/./a.md")).toBeNull();
+		expect(normalizePath("notes/.")).toBeNull();
+		expect(normalizePath(".obsidian/x.md")).toBe(".obsidian/x.md");
+	});
+
 	it("allows `..` when it is part of a name, not a whole segment", () => {
 		expect(normalizePath("a..b/c.md")).toBe("a..b/c.md");
 		expect(normalizePath("..hidden.md")).toBe("..hidden.md");

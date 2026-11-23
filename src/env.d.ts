@@ -5,6 +5,7 @@ import type { oidcAuthSchema } from "./auth/providers/oidc/schema";
 import type { AuthProviderName } from "./auth/providers/schema";
 import type { commonEnvSchema } from "./config";
 import type { githubStorageSchema } from "./storage/github/schema";
+import type { s3StorageSchema } from "./storage/s3/schema";
 import type { StorageBackendName } from "./storage/schema";
 
 /**
@@ -34,7 +35,8 @@ type VaultEnv = CommonEnv & { AUTH_PROVIDER?: AuthProviderName } & ProviderKeys<
 	> &
 	ProviderKeys<typeof googleAuthSchema> &
 	ProviderKeys<typeof oidcAuthSchema> &
-	Partial<Omit<z.input<typeof githubStorageSchema>, "VAULT_STORAGE">> & {
+	Partial<Omit<z.input<typeof githubStorageSchema>, "VAULT_STORAGE">> &
+	Partial<Omit<z.input<typeof s3StorageSchema>, "VAULT_STORAGE">> & {
 		VAULT_STORAGE?: StorageBackendName;
 		VAULT_BUCKET?: R2Bucket;
 	};

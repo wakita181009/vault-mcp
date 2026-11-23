@@ -2,7 +2,7 @@
 	"name": "vault-mcp",
 	"version": "0.5.2",
 	"type": "module",
-	"description": "Authenticated remote MCP server on Cloudflare Workers that exposes a private Obsidian vault (GitHub repo or Cloudflare R2) to claude.ai and Claude Code: read, create/overwrite, and delete notes, never rename or move.",
+	"description": "Authenticated remote MCP server on Cloudflare Workers that exposes a private Obsidian vault (GitHub repo, Cloudflare R2, or any S3-compatible bucket) to claude.ai and Claude Code: read, create/overwrite, and delete notes, never rename or move.",
 	"license": "MIT",
 	"packageManager": "pnpm@11.14.0",
 	"scripts": {
@@ -26,6 +26,7 @@
 		"@modelcontextprotocol/sdk": "1.32.1",
 		"@modelcontextprotocol/server": "2.3.1",
 		"agents": "^0.30.1",
+		"aws4fetch": "1.0.20",
 		"hono": "^4.13.19",
 		"octokit": "^5.0.5",
 		"zod": "^4.6.7"

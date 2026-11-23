@@ -171,7 +171,50 @@ describe("parseEnv VAULT_STORAGE", () => {
 	});
 
 	it("rejects an unknown backend", () => {
-		expect(() => parseR2({ VAULT_STORAGE: "s3" })).toThrow(/VAULT_STORAGE/);
+		expect(() => parseR2({ VAULT_STORAGE: "dropbox" })).toThrow(/VAULT_STORAGE/);
+	});
+
+	describe("s3", () => {
+		const S3_KEYS = {
+			VAULT_STORAGE: "s3",
+			VAULT_S3_BUCKET: "vault",
+			VAULT_S3_REGION: "us-east-1",
+			VAULT_S3_ACCESS_KEY_ID: "AKIAEXAMPLE",
+			VAULT_S3_SECRET_ACCESS_KEY: "secret",
+		};
+		const parseS3 = (overrides: Record<string, string> = {}) => parseR2({ ...S3_KEYS, ...overrides });
+		const scanOf = (config: VaultEnvConfig) =>
+			config.VAULT_STORAGE === "s3" ? config.VAULT_S3_SEARCH_SCAN : undefined;
+
+		it("accepts an s3 deploy without an endpoint and defaults the scan budget", () => {
+			const config = parseS3();
+			expect(config.VAULT_STORAGE).toBe("s3");
+			expect(scanOf(config)).toBe(40);
+		});
+
+		it("parses a raised scan budget and rejects out-of-range or non-numeric ones", () => {
+			expect(scanOf(parseS3({ VAULT_S3_SEARCH_SCAN: "500" }))).toBe(500);
+			for (const bad of ["0", "-1", "abc", "1.5", "1001"]) {
+				expect(() => parseS3({ VAULT_S3_SEARCH_SCAN: bad })).toThrow(/VAULT_S3_SEARCH_SCAN/);
+			}
+		});
+
+		it("requires https for the endpoint except on localhost", () => {
+			expect(() => parseS3({ VAULT_S3_ENDPOINT: "https://s3.us-west-004.backblazeb2.com" })).not.toThrow();
+			expect(() => parseS3({ VAULT_S3_ENDPOINT: "http://localhost:9000" })).not.toThrow();
+			expect(() => parseS3({ VAULT_S3_ENDPOINT: "http://minio.example.com" })).toThrow(/VAULT_S3_ENDPOINT/);
+			expect(() => parseS3({ VAULT_S3_ENDPOINT: "https://s3.example.com/?x=1" })).toThrow(
+				/VAULT_S3_ENDPOINT/,
+			);
+			// Scheme-less: reported as an issue on the key, not a bare TypeError.
+			expect(() => parseS3({ VAULT_S3_ENDPOINT: "s3.example.com" })).toThrow(/VAULT_S3_ENDPOINT/);
+		});
+
+		it("requires the bucket, region, and keys", () => {
+			expect(() =>
+				parseR2({ VAULT_STORAGE: "s3" }),
+			).toThrow(/VAULT_S3_BUCKET[\s\S]*VAULT_S3_REGION[\s\S]*VAULT_S3_ACCESS_KEY_ID[\s\S]*VAULT_S3_SECRET_ACCESS_KEY/);
+		});
 	});
 
 	it("reports auth and storage errors together", () => {

@@ -1,5 +1,6 @@
 import { githubStorageFromEnv } from "./github";
 import { r2StorageFromEnv } from "./r2";
+import { s3StorageFromEnv } from "./s3";
 import type { StorageEnvConfig } from "./schema";
 import type { VaultStorage } from "./types";
 
@@ -9,5 +10,7 @@ export function storageFromEnv(config: StorageEnvConfig, env: Env): VaultStorage
 			return githubStorageFromEnv(config);
 		case "r2":
 			return r2StorageFromEnv(env);
+		case "s3":
+			return s3StorageFromEnv(config);
 	}
 }
