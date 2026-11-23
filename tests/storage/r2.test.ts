@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { findFragments, R2Storage } from "../../src/storage/r2";
+import { R2Storage } from "../../src/storage/r2";
 import { VaultError } from "../../src/storage/types";
 
 /**
@@ -207,22 +207,5 @@ describe("R2Storage.searchContent", () => {
 		const { storage, bucket } = fakeBucket({ "a.md": "x" });
 		expect(await storage.searchContent("", 10, candidatesOf(storage))).toEqual([]);
 		expect(bucket.list).not.toHaveBeenCalled();
-	});
-});
-
-describe("findFragments", () => {
-	it("returns context around each non-overlapping hit, up to three", () => {
-		const text = ["x".repeat(100), "KEY", "y".repeat(200), "key", "z".repeat(200), "key", "w".repeat(200), "key"].join("");
-		const fragments = findFragments(text, /key/giu);
-		expect(fragments).toHaveLength(3);
-		expect(fragments[0]).toBe(`${"x".repeat(60)}KEY${"y".repeat(60)}`);
-	});
-
-	it("clamps fragments at the text edges", () => {
-		expect(findFragments("key at start", /key/giu)).toEqual(["key at start"]);
-	});
-
-	it("stays aligned after characters whose lowercase form is longer", () => {
-		expect(findFragments("İİİ needle", /needle/giu)).toEqual(["İİİ needle"]);
 	});
 });

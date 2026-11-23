@@ -3,6 +3,7 @@ import { parseEnv } from "../../src/config";
 import { storageFromEnv } from "../../src/storage";
 import { GitHubStorage } from "../../src/storage/github";
 import { R2Storage } from "../../src/storage/r2";
+import { S3Storage } from "../../src/storage/s3";
 
 const AUTH = {
 	GITHUB_CLIENT_ID: "client-id",
@@ -34,5 +35,17 @@ describe("storageFromEnv", () => {
 
 	it("fails fast when r2 is selected but the binding is missing", () => {
 		expect(() => build({ ...AUTH, VAULT_STORAGE: "r2" })).toThrow(/VAULT_BUCKET/);
+	});
+
+	it("builds the S3 backend from its secrets", () => {
+		const storage = build({
+			...AUTH,
+			VAULT_STORAGE: "s3",
+			VAULT_S3_BUCKET: "vault",
+			VAULT_S3_REGION: "us-east-1",
+			VAULT_S3_ACCESS_KEY_ID: "AKIAEXAMPLE",
+			VAULT_S3_SECRET_ACCESS_KEY: "secret",
+		});
+		expect(storage).toBeInstanceOf(S3Storage);
 	});
 });

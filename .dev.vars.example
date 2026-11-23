@@ -40,6 +40,18 @@ VAULT_GITHUB_TOKEN=<github_pat_...>
 VAULT_OWNER=<github owner/org of the vault repo>
 VAULT_REPO=<vault repo name>
 
+# S3-compatible storage instead of GitHub (VAULT_STORAGE=s3): drop the three
+# GitHub vault keys above. The access key must be scoped to the one vault bucket.
+# VAULT_STORAGE=s3
+# VAULT_S3_BUCKET=<your-vault-bucket>
+# VAULT_S3_REGION=us-east-1
+# VAULT_S3_ACCESS_KEY_ID=<bucket-scoped access key id>
+# VAULT_S3_SECRET_ACCESS_KEY=<secret access key>
+# Omit for AWS; set for B2/MinIO/Wasabi/... (http only for localhost):
+# VAULT_S3_ENDPOINT=http://localhost:9000
+# Optional, Paid plan only (Free allows 50 subrequests per request; default 40):
+# VAULT_S3_SEARCH_SCAN=500
+
 # Optional overrides — omit to use the defaults baked into src/config.ts:
 #   VAULT_BRANCH             -> "main"
 #   VAULT_ALLOWED_PREFIXES   -> "" (whole repo)

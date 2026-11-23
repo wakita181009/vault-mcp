@@ -1,4 +1,5 @@
 import { invalidEnvError } from "../../env-error";
+import { scanSearch } from "../scan-search";
 import { type ContentMatch, type FileEntry, VaultError, type VaultStorage } from "../types";
 
 /**
@@ -16,10 +17,6 @@ import { type ContentMatch, type FileEntry, VaultError, type VaultStorage } from
 // Cloudflare services per invocation, so listing and search are both capped.
 const MAX_LIST_PAGES = 20;
 const MAX_SEARCH_SCAN = 500;
-// Workers allow six simultaneous open connections per invocation; more just queue.
-const SEARCH_CONCURRENCY = 6;
-const MAX_FRAGMENTS_PER_FILE = 3;
-const FRAGMENT_CONTEXT = 60;
 
 const NOTE_CONTENT_TYPE = "text/markdown; charset=utf-8";
 
@@ -56,34 +53,16 @@ export class R2Storage implements VaultStorage {
 		return true;
 	}
 
-	/**
-	 * R2 has no content index, so this scans candidate objects (case-insensitive
-	 * substring match), most recently uploaded first, up to `MAX_SEARCH_SCAN`,
-	 * and stops once `limit` files hit. Recency order means the notes left
-	 * unscanned in a large vault are the stale ones, not an alphabetical tail.
-	 */
+	/** R2 has no content index; see `scanSearch`. */
 	async searchContent(
 		query: string,
 		limit: number,
 		listCandidates: () => Promise<FileEntry[]>,
 	): Promise<ContentMatch[]> {
-		if (query.length === 0) return [];
-		const pattern = new RegExp(escapeRegExp(query), "giu");
-
-		const candidates = (await listCandidates())
-			.toSorted((a, b) => modifiedTime(b) - modifiedTime(a))
-			.slice(0, MAX_SEARCH_SCAN)
-			.map((file) => file.path);
-
-		const hits: ContentMatch[] = [];
-		for (let i = 0; i < candidates.length && hits.length < limit; i += SEARCH_CONCURRENCY) {
-			const batch = candidates.slice(i, i + SEARCH_CONCURRENCY);
-			const matches = await Promise.all(batch.map((path) => this.matchFile(path, pattern)));
-			for (const match of matches) {
-				if (match && hits.length < limit) hits.push(match);
-			}
-		}
-		return hits;
+		return scanSearch(query, limit, listCandidates, {
+			maxScan: MAX_SEARCH_SCAN,
+			read: async (path) => (await this.bucket.get(path))?.text() ?? null,
+		});
 	}
 
 	private async listObjects(): Promise<{ objects: R2Object[]; truncated: boolean }> {
@@ -98,45 +77,6 @@ export class R2Storage implements VaultStorage {
 		}
 		return { objects, truncated: true };
 	}
-
-	private async matchFile(path: string, pattern: RegExp): Promise<ContentMatch | null> {
-		try {
-			const obj = await this.bucket.get(path);
-			// Deleted between list and get — not a match, not an error.
-			if (obj === null) return null;
-			const fragments = findFragments(await obj.text(), pattern);
-			return fragments.length > 0 ? { path, fragments } : null;
-		} catch {
-			// One unreadable object must not reject the batch: `VaultClient` turns a
-			// rejected content search into zero content hits, discarding the rest.
-			return null;
-		}
-	}
-}
-
-/**
- * Up to `MAX_FRAGMENTS_PER_FILE` snippets around non-overlapping matches of a
- * global `pattern`. Matching the original text (not a lowercased copy) keeps
- * indexes valid when case folding changes string length (e.g. "İ").
- */
-export function findFragments(text: string, pattern: RegExp): string[] {
-	const fragments: string[] = [];
-	let from = 0;
-	for (const match of text.matchAll(pattern)) {
-		if (fragments.length >= MAX_FRAGMENTS_PER_FILE) break;
-		if (match.index < from) continue;
-		const start = Math.max(0, match.index - FRAGMENT_CONTEXT);
-		const end = Math.min(text.length, match.index + match[0].length + FRAGMENT_CONTEXT);
-		fragments.push(text.slice(start, end));
-		from = end;
-	}
-	return fragments;
-}
-
-const modifiedTime = (file: FileEntry) => file.modifiedAt?.getTime() ?? 0;
-
-function escapeRegExp(text: string): string {
-	return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export function r2StorageFromEnv(env: Pick<Env, "VAULT_BUCKET">): R2Storage {

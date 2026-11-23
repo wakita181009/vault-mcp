@@ -5,12 +5,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Authenticated **remote MCP server** on Cloudflare Workers that exposes a private Obsidian vault —
-hosted in a GitHub repo (default) or a Cloudflare R2 bucket — to both **claude.ai** (Web / Desktop /
-iPhone) and **Claude Code** — one free deployment serving every Claude surface. It reads notes,
+hosted in a GitHub repo (default), a Cloudflare R2 bucket, or any S3-compatible bucket — to both
+**claude.ai** (Web / Desktop / iPhone) and **Claude Code** — one free deployment serving every Claude surface. It reads notes,
 creates/overwrites them, and deletes them; it never renames or moves. On GitHub every mutation is a
-git commit, so overwrites and deletes stay revertable; R2 keeps no history.
+git commit, so overwrites and deletes stay revertable; R2 and S3 keep no history.
 
-It works against the vault through the GitHub API or an R2 binding, so the vault can stay private
+It works against the vault through the GitHub API, an R2 binding, or the S3 API, so the vault can stay private
 and there is no always-on machine to maintain. Deploy your own instance with C3 (one command) or clone it
 manually — both are covered below. Your vault target is set via secrets, so the committed config
 ships generic.
@@ -23,8 +23,9 @@ ships generic.
   (`VAULT_ALLOWED_GITHUB_LOGINS` / `VAULT_ALLOWED_GOOGLE_EMAILS` / `VAULT_ALLOWED_OIDC_EMAILS`) get any tools at all.
 - **Accesses the vault** through the GitHub API using a **separate fine-grained PAT**
   (`VAULT_GITHUB_TOKEN`) scoped to Contents Read + Write on the one vault repo — or, with
-  `VAULT_STORAGE=r2`, from a **Cloudflare R2** bucket bound to the Worker (see
-  [Storage backend](#storage-backend)).
+  `VAULT_STORAGE=r2`, from a **Cloudflare R2** bucket bound to the Worker — or, with
+  `VAULT_STORAGE=s3`, from an **S3-compatible** bucket (AWS S3, Backblaze B2, MinIO, …) via
+  bucket-scoped access keys (see [Storage backend](#storage-backend)).
 - **Transport:** Streamable HTTP at `/mcp`.
 
 ### Tools
@@ -35,7 +36,7 @@ ships generic.
 | `read_note` | Read the raw markdown of one note by vault-relative path. |
 | `write_note` | Create a new note or overwrite an existing one (markdown paths only). |
 | `delete_note` | Delete an existing note by path (markdown paths only; on GitHub, recorded as a revertable git commit). |
-| `search_notes` | Content search (GitHub code search, indexed; R2: bounded scan) + filename search, merged. |
+| `search_notes` | Content search (GitHub code search, indexed; R2/S3: bounded scan) + filename search, merged. |
 
 ## Two credentials, two jobs
 
@@ -81,6 +82,7 @@ Keycloak, Slack, … — and resolves its endpoints from
 | --- | --- | --- | --- |
 | `github` (default) | `VAULT_GITHUB_TOKEN`, `VAULT_OWNER`, `VAULT_REPO` | Obsidian Git | git commits — revertable |
 | `r2` | an R2 bucket bound as `VAULT_BUCKET` | any S3-compatible sync (e.g. Remotely Save) | overwrite/delete in place — **not** recoverable |
+| `s3` | `VAULT_S3_BUCKET`, `VAULT_S3_REGION`, `VAULT_S3_ACCESS_KEY_ID`, `VAULT_S3_SECRET_ACCESS_KEY` | any S3-compatible sync (e.g. Remotely Save) | overwrite/delete in place — recoverable only with bucket versioning |
 
 For `r2`, object keys must be vault-relative paths at the bucket root (sync with no remote
 prefix and **encryption off** — the server reads plain markdown). The binding is not in the
@@ -95,6 +97,42 @@ is needed. R2 has no content index, so `search_notes` scans up to the 500 most r
 visible notes per query
 (listing is capped at 20,000 objects) to stay within the Workers subrequest limits. Check that
 your sync plugin picks up notes the server writes before relying on it for two-way edits.
+
+For `s3`, the object layout is the same as `r2` (vault-relative keys at the bucket root,
+encryption off). Requests are SigV4-signed with an access key that must be limited to the one
+vault bucket — for AWS, an IAM user with only this policy:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::<your-vault-bucket>"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::<your-vault-bucket>/*"
+    }
+  ]
+}
+```
+
+Other providers have an equivalent (e.g. a Backblaze B2 application key restricted to one
+bucket). Leave `VAULT_S3_ENDPOINT` unset for AWS (virtual-hosted URLs); set it for anything else,
+e.g. `https://s3.us-west-004.backblazeb2.com`, and requests go path-style to
+`<endpoint>/<bucket>/<key>`. It must be https (plain http is accepted only for `localhost`). For an
+AWS bucket whose name contains dots, set `VAULT_S3_ENDPOINT=https://s3.<region>.amazonaws.com`
+so TLS is not checked against `<bucket.with.dots>.s3…`.
+
+Every S3 call is an external subrequest, and the Workers **Free** plan allows only **50 per
+request**. So listing is capped at 5,000 objects and `search_notes` scans the **40** most
+recently changed visible notes by default. On the Paid plan raise the scan with
+`VAULT_S3_SEARCH_SCAN` (up to 1000). Turn on bucket versioning if you want overwrites and deletes
+to be recoverable. An overwrite keeps the object's `x-amz-meta-*` user metadata (what sync plugins
+store) but resets other attributes such as `Cache-Control`, tags, and storage class.
 
 ## Access scope
 
@@ -240,6 +278,18 @@ replace the three `VAULT_GITHUB_TOKEN` / `VAULT_OWNER` / `VAULT_REPO` secrets wi
 pnpm exec wrangler secret put VAULT_STORAGE               # r2
 ```
 
+For an S3-compatible vault, replace the same three secrets with:
+
+```bash
+pnpm exec wrangler secret put VAULT_STORAGE               # s3
+pnpm exec wrangler secret put VAULT_S3_BUCKET
+pnpm exec wrangler secret put VAULT_S3_REGION             # e.g. us-east-1, us-west-004 (B2)
+pnpm exec wrangler secret put VAULT_S3_ACCESS_KEY_ID      # bucket-scoped key (see Storage backend)
+pnpm exec wrangler secret put VAULT_S3_SECRET_ACCESS_KEY
+pnpm exec wrangler secret put VAULT_S3_ENDPOINT           # omit for AWS; e.g. https://s3.us-west-004.backblazeb2.com
+pnpm exec wrangler secret put VAULT_S3_SEARCH_SCAN        # optional, Paid plan only: e.g. 500
+```
+
 Endpoint: `https://vault-mcp.<subdomain>.workers.dev/mcp`
 
 ### 6. Connect the clients
@@ -294,7 +344,9 @@ src/
 │   ├── schema.ts              # storageEnvSchema: VAULT_STORAGE union of the backend schemas
 │   ├── types.ts               # VaultStorage interface every backend implements (+ VaultError)
 │   ├── github/                # GitHub API backend (Octokit): index.ts + schema.ts (env keys)
-│   └── r2/                    # Cloudflare R2 backend (VAULT_BUCKET binding): index.ts + schema.ts
+│   ├── scan-search.ts         # bounded recency-ordered content scan shared by r2 and s3
+│   ├── r2/                    # Cloudflare R2 backend (VAULT_BUCKET binding): index.ts + schema.ts
+│   └── s3/                    # S3-compatible backend (aws4fetch SigV4): index.ts + xml.ts + schema.ts
 ├── config.ts                  # common env schema + defaults; parseEnv composes auth + storage
 ├── env.d.ts                   # secret bindings type augmentation
 └── auth/

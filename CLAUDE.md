@@ -1,7 +1,8 @@
 # vault-mcp
 
 Authenticated remote MCP server (Cloudflare Workers) that exposes a private Obsidian vault —
-hosted in a GitHub repo (default) or a Cloudflare R2 bucket (`VAULT_STORAGE=r2`) — to claude.ai
+hosted in a GitHub repo (default), a Cloudflare R2 bucket (`VAULT_STORAGE=r2`), or any
+S3-compatible bucket (`VAULT_STORAGE=s3`) — to claude.ai
 and Claude Code. Reads (list/read/search) plus two note mutations:
 `write_note` (create/overwrite) and `delete_note` — **no rename/move**. The target repo and
 access policy are configured through secrets; path-scope overrides default in `src/config.ts`,
@@ -39,7 +40,11 @@ so `wrangler.jsonc` ships generic (no `vars`).
   `email_verified: false` is rejected regardless. Keep the OIDC discovery document's `issuer`
   check in `providers/oidc/discovery.ts`: without it a hostile host could supply foreign endpoints.
 - **Storage credentials stay single-vault scoped.** For R2 that is the `VAULT_BUCKET` binding to
-  one bucket — never bind a broader bucket or swap in S3 API keys. For GitHub:
+  one bucket — never bind a broader bucket or swap the R2 backend onto S3 API keys. For S3,
+  `VAULT_S3_ACCESS_KEY_ID` / `VAULT_S3_SECRET_ACCESS_KEY` must come from an IAM policy limited
+  to the one vault bucket (the README's policy); never document or default to account-wide keys.
+  Keep `aws4fetch` at `retries: 0` and the list/scan caps within the Free plan's 50 subrequests.
+  For GitHub:
   **`VAULT_GITHUB_TOKEN` stays single-repo scoped.** It needs Contents: Read *and Write* (Write
   covers both `write_note` and `delete_note`), but only on the vault repo. Never widen it beyond
   that one repo or swap in a broader token.

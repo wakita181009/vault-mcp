@@ -58,8 +58,11 @@ export function normalizePath(path: string): string | null {
 	if (trimmed.length === 0) return null;
 	if (trimmed.includes("\\")) return null;
 	if (trimmed.includes("\0")) return null;
-	// Reject any `..` segment (traversal) — check segment-wise, not substring.
-	if (trimmed.split("/").some((seg) => seg === "..")) return null;
+	// Reject `..` (traversal) and `.` segments — segment-wise, not substring. A
+	// `.` segment is not traversal on its own, but URL-based backends (S3, the
+	// GitHub API) collapse it, so `./.obsidian/x.md` would pass the prefix
+	// policy as written and then land on `.obsidian/x.md`.
+	if (trimmed.split("/").some((seg) => seg === ".." || seg === ".")) return null;
 	return trimmed;
 }
 
