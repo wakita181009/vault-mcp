@@ -34,7 +34,8 @@ export const deleteNoteInput = z.object({
 });
 
 export const searchNotesInput = z.object({
-	query: z.string().describe("Text to search for across note contents and filenames."),
+	// An empty query would match every filename and return an arbitrary first page.
+	query: z.string().min(1).describe("Text to search for across note contents and filenames."),
 	limit: z
 		.number()
 		.int()

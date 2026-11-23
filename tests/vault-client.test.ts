@@ -236,6 +236,7 @@ describe("searchNotes", () => {
 				items: [
 					{
 						path: "notes/found.md",
+						repository: { full_name: "o/r" },
 						text_matches: [{ fragment: "hello" }, { fragment: undefined }],
 					},
 				],
@@ -255,13 +256,39 @@ describe("searchNotes", () => {
 		expect(found?.fragments).toEqual(["hello"]);
 	});
 
-	it("falls back to filename search when content search fails", async () => {
-		gh.code.mockRejectedValue(new Error("search index cold"));
+	it("drops content hits from repos other than the vault repo", async () => {
+		gh.code.mockResolvedValue({
+			data: {
+				items: [
+					{
+						path: "notes/foreign.md",
+						repository: { full_name: "evil/public" },
+						text_matches: [{ fragment: "injected" }],
+					},
+					{
+						path: "notes/own.md",
+						repository: { full_name: "O/R" },
+						text_matches: [{ fragment: "mine" }],
+					},
+				],
+			},
+		});
+		gh.getTree.mockResolvedValue(treeResult([]));
+		const hits = await client.searchNotes("x repo:evil/public", 10);
+		expect(hits).toEqual([{ path: "notes/own.md", fragments: ["mine"] }]);
+	});
+
+	it("falls back to filename search when content search fails, logging the failure", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const failure = new Error("search index cold");
+		gh.code.mockRejectedValue(failure);
 		gh.getTree.mockResolvedValue(
 			treeResult([{ path: "notes/query-here.md", type: "blob" }]),
 		);
 		const hits = await client.searchNotes("query", 10);
 		expect(hits.map((h) => h.path)).toEqual(["notes/query-here.md"]);
+		expect(warn).toHaveBeenCalledWith(expect.any(String), failure);
+		warn.mockRestore();
 	});
 
 	it("respects the result limit", async () => {
