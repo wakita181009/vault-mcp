@@ -1,15 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// McpAgent extends DurableObject, which only exists inside workerd. A plain
-// base class with the same surface lets VaultMCP be constructed under Node.
-vi.mock("agents/mcp", () => ({
-	McpAgent: class {
-		static serve = vi.fn(() => ({ fetch: vi.fn() }));
-		constructor(
-			public ctx: unknown,
-			public env: unknown,
-		) {}
-	},
+const mcpHandler = vi.hoisted(() => ({
+	create: vi.fn(),
+	fetch: vi.fn(async () => new Response("mcp")),
+}));
+vi.mock("agents/mcp/server", () => ({
+	createMcpHandler: mcpHandler.create.mockImplementation(() => mcpHandler.fetch),
 }));
 
 const vaultClient = vi.hoisted(() => ({
@@ -33,9 +29,8 @@ vi.mock("../src/oauth-provider", async (importOriginal) => ({
 	createOAuthProvider: provider.create.mockImplementation(() => ({ fetch: provider.fetch })),
 }));
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { McpAgent } from "agents/mcp";
-import worker, { VaultMCP } from "../src/index";
+import { McpServer } from "@modelcontextprotocol/server";
+import worker, { createVaultServer } from "../src/index";
 import { vaultClientFromEnv } from "../src/vault";
 
 type ToolCallback = (args: Record<string, unknown>) => Promise<unknown>;
@@ -46,29 +41,33 @@ const ctx = {} as unknown as ExecutionContext;
 
 const registeredTools = async () => {
 	const register = vi.spyOn(McpServer.prototype, "registerTool");
-	const agent = new VaultMCP(ctx as never, env);
-	await agent.init();
+	const server = createVaultServer(env);
 	const calls = register.mock.calls as unknown as [string, ToolConfig, ToolCallback][];
 	register.mockRestore();
 	return {
-		agent,
+		server,
 		tools: new Map(calls.map(([name, , cb]) => [name, cb])),
 		configs: new Map(calls.map(([name, config]) => [name, config])),
 	};
 };
 
-// Clear per-test mocks only: `McpAgent.serve` is called once at module load
-// and must keep that record for the entry-point assertion below.
 beforeEach(() => {
-	for (const fn of [provider.create, provider.fetch, ...Object.values(vaultClient)]) fn.mockClear();
+	for (const fn of [
+		provider.create,
+		provider.fetch,
+		mcpHandler.create,
+		mcpHandler.fetch,
+		...Object.values(vaultClient),
+	])
+		fn.mockClear();
 	vi.mocked(vaultClientFromEnv).mockClear();
 });
 
-describe("VaultMCP", () => {
-	it("builds the vault client from the DO env and registers the five note tools", async () => {
-		const { agent, tools } = await registeredTools();
+describe("createVaultServer", () => {
+	it("builds the vault client from the request env and registers the five note tools", async () => {
+		const { server, tools } = await registeredTools();
 		expect(vaultClientFromEnv).toHaveBeenCalledWith(env);
-		expect(agent.server).toBeInstanceOf(McpServer);
+		expect(server).toBeInstanceOf(McpServer);
 		expect([...tools.keys()]).toEqual([
 			"list_notes",
 			"read_note",
@@ -119,8 +118,26 @@ describe("VaultMCP", () => {
 });
 
 describe("worker entry", () => {
-	it("serves the MCP agent on /mcp", () => {
-		expect(McpAgent.serve).toHaveBeenCalledWith("/mcp");
+	it("serves a stateless MCP handler on /mcp with a server built from the request env", async () => {
+		const req = new Request("https://mcp.example.com/mcp", { method: "POST" });
+		const reqEnv = { ...env, VAULT_ALLOWED_GITHUB_LOGINS: "octocat" } as unknown as Env;
+		const reqCtx = { props: { login: "octocat" } } as unknown as ExecutionContext;
+		await worker.fetch(req as unknown as Parameters<typeof worker.fetch>[0], reqEnv, ctx);
+		const [apiHandler] = provider.create.mock.calls[0] as unknown as [
+			{ fetch: (r: Request, e: Env, c: ExecutionContext) => Promise<Response> },
+		];
+
+		const res = await apiHandler.fetch(req, reqEnv, reqCtx);
+
+		expect(await res.text()).toBe("mcp");
+		expect(mcpHandler.create).toHaveBeenCalledWith(expect.any(Function), {
+			route: "/mcp",
+			allowedOriginHostnames: "*",
+		});
+		expect(mcpHandler.fetch).toHaveBeenCalledWith(req, reqEnv, reqCtx);
+		const [factory] = mcpHandler.create.mock.calls[0] as unknown as [() => McpServer];
+		expect(factory()).toBeInstanceOf(McpServer);
+		expect(vaultClientFromEnv).toHaveBeenCalledWith(reqEnv);
 	});
 
 	it("builds the OAuth provider for the request origin and delegates to it", async () => {
