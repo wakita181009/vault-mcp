@@ -192,7 +192,7 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 			metadata: {
 				label: name,
 			},
-			// Surfaced as `this.props` on VaultMCP.
+			// Surfaced as `ctx.props` to the guarded MCP handler.
 			props: {
 				email,
 				login,

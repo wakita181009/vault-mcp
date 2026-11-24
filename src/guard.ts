@@ -14,8 +14,8 @@ export function isLoginAllowed(login: string | undefined, allowedLogins: string[
  * `ctx.props` before this runs, so an identity absent from the configured
  * provider's allowlist (`VAULT_ALLOWED_GITHUB_LOGINS`,
  * `VAULT_ALLOWED_GOOGLE_EMAILS`, or `VAULT_ALLOWED_OIDC_EMAILS`) is rejected before the wrapped handler (and
- * the VaultMCP Durable Object it creates) is ever reached. Only the allowlist
- * is read here; the rest of the env is validated a step later during DO init.
+ * the MCP server it builds) is ever reached. Only the allowlist is read here;
+ * the rest of the env is validated a step later when the vault client is built.
  */
 export function createGuardedApiHandler(inner: ApiHandler): ApiHandler {
 	return {

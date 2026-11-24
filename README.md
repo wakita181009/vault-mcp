@@ -333,7 +333,7 @@ pnpm exec zod-aot check src/schemas.ts --auto-discover
 
 ```
 src/
-├── index.ts                   # VaultMCP (McpAgent) + Worker entry; registers the tools
+├── index.ts                   # Worker entry: stateless MCP handler; registers the tools
 ├── oauth-provider.ts          # OAuthProvider built per request (canonical resource = origin + /mcp)
 ├── schemas.ts                 # MCP tool input schemas (compiled at build time by zod-aot)
 ├── tools.ts                   # MCP tool handlers (list/read/write/delete/search) + result & allowlist helpers
@@ -354,7 +354,7 @@ src/
     ├── approval-dialog.ts     # OAuth approval dialog + HTML sanitization
     ├── session.ts             # OAuth state / CSRF / approved-clients cookie
     ├── upstream.ts            # upstream OAuth authorize URL + token exchange
-    ├── props.ts               # identity captured at login, surfaced to the DO as this.props
+    ├── props.ts               # identity captured at login, surfaced to the MCP handler as ctx.props
     └── providers/             # upstream identity providers (selector in index.ts)
         ├── types.ts           # UpstreamProvider interface
         ├── schema.ts          # authEnvSchema: AUTH_PROVIDER union of the provider schemas

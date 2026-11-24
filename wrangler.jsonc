@@ -31,22 +31,22 @@
    *
    * For local dev, put the same keys in `.dev.vars` (see .dev.vars.example).
    */
+	// v1 created the per-session McpAgent Durable Object. MCP is now served
+	// statelessly from the Worker, so v2 deletes the class and its stored sessions.
 	"migrations": [
 		{
 			"new_sqlite_classes": [
 				"VaultMCP"
 			],
 			"tag": "v1"
+		},
+		{
+			"deleted_classes": [
+				"VaultMCP"
+			],
+			"tag": "v2"
 		}
 	],
-	"durable_objects": {
-		"bindings": [
-			{
-				"class_name": "VaultMCP",
-				"name": "MCP_OBJECT"
-			}
-		]
-	},
 	"kv_namespaces": [
 		{
 			"binding": "OAUTH_KV",

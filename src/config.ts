@@ -12,9 +12,9 @@ import { type StorageEnvConfig, storageEnvSchema } from "./storage/schema";
  * schema checks the actual values once, up front, so a misconfigured deploy
  * fails loudly with a precise message.
  *
- * Only string secrets and vars are validated and returned. Bindings (KV, the
- * Durable Object namespace, the injected OAuth provider) are stripped from the
- * returned config — access them via the raw `env` / `this.env` where needed.
+ * Only string secrets and vars are validated and returned. Bindings (KV, R2,
+ * the injected OAuth provider) are stripped from the returned config — access
+ * them via the raw `env` where needed.
  */
 
 // The cookie signing key is documented as `openssl rand -hex 32` (64 chars) and
