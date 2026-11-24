@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/wakita181009/vault-mcp/compare/v0.6.0...v0.6.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* serve MCP statelessly instead of one Durable Object per session ([#102](https://github.com/wakita181009/vault-mcp/issues/102)) ([f59944e](https://github.com/wakita181009/vault-mcp/commit/f59944e80d11ead1e96125f778b46741bd8fb59c))
+
 ## [0.6.0](https://github.com/wakita181009/vault-mcp/compare/v0.5.2...v0.6.0) (2026-11-23)
 
 
