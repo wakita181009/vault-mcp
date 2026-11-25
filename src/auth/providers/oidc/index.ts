@@ -26,8 +26,10 @@ export type OidcPreset = {
 	allowsUnverifiedEmail: (env: Env) => boolean;
 };
 
-const isEmailTrusted = (verified: boolean | undefined, allowUnverified: boolean) =>
-	verified === true || (verified === undefined && allowUnverified);
+const isEmailTrusted = (
+	verified: boolean | undefined,
+	allowUnverified: boolean,
+) => verified === true || (verified === undefined && allowUnverified);
 
 /**
  * Builds a provider for any OpenID Connect IdP: the identity is the verified
@@ -46,7 +48,8 @@ export function createOidcProvider(preset: OidcPreset): UpstreamProvider {
 			return { authorizeUrl, tokenUrl };
 		},
 		credentials: preset.credentials,
-		allowedLogins: (env) => preset.allowedLogins(env).map((email) => email.toLowerCase()),
+		allowedLogins: (env) =>
+			preset.allowedLogins(env).map((email) => email.toLowerCase()),
 		fetchIdentity: async (accessToken, env) => {
 			const label = preset.displayName(env);
 			const { userinfoUrl } = await preset.endpoints(env);
@@ -55,16 +58,27 @@ export function createOidcProvider(preset: OidcPreset): UpstreamProvider {
 				headers: { Authorization: `Bearer ${accessToken}` },
 			});
 			if (!res.ok) {
-				throw new UpstreamIdentityError(`${label} userinfo request failed (${res.status})`);
+				throw new UpstreamIdentityError(
+					`${label} userinfo request failed (${res.status})`,
+				);
 			}
 			const parsed = userinfoSchema.safeParse(await res.json());
 			if (!parsed.success) {
-				throw new UpstreamIdentityError(`${label} userinfo response is missing an email`);
+				throw new UpstreamIdentityError(
+					`${label} userinfo response is missing an email`,
+				);
 			}
 			// An unverified email could belong to anyone who typed it into an
 			// account, so it must never satisfy the allowlist.
-			if (!isEmailTrusted(parsed.data.email_verified, preset.allowsUnverifiedEmail(env))) {
-				throw new UpstreamIdentityError(`${label} account email is not verified`);
+			if (
+				!isEmailTrusted(
+					parsed.data.email_verified,
+					preset.allowsUnverifiedEmail(env),
+				)
+			) {
+				throw new UpstreamIdentityError(
+					`${label} account email is not verified`,
+				);
 			}
 			const email = parsed.data.email.toLowerCase();
 			return { login: email, name: parsed.data.name ?? email, email };

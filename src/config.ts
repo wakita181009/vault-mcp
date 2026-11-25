@@ -34,12 +34,17 @@ const DEFAULT_DENIED_PREFIXES = ".git/,.obsidian/,.claude/";
 export const commonEnvSchema = z.object({
 	COOKIE_ENCRYPTION_KEY: z
 		.string()
-		.min(MIN_COOKIE_KEY_LENGTH, `too short — generate with \`openssl rand -hex 32\``),
+		.min(
+			MIN_COOKIE_KEY_LENGTH,
+			`too short — generate with \`openssl rand -hex 32\``,
+		),
 	VAULT_ALLOWED_PREFIXES: z.string().default(""),
 	VAULT_DENIED_PREFIXES: z.string().default(DEFAULT_DENIED_PREFIXES),
 });
 
-export type VaultEnvConfig = z.infer<typeof commonEnvSchema> & AuthEnvConfig & StorageEnvConfig;
+export type VaultEnvConfig = z.infer<typeof commonEnvSchema> &
+	AuthEnvConfig &
+	StorageEnvConfig;
 
 /**
  * Throws one aggregated error listing every missing or malformed key. zod's
@@ -58,7 +63,10 @@ export function parseEnv(env: Env): VaultEnvConfig {
 		throw invalidEnvError(
 			results
 				.flatMap((result) => result.error?.issues ?? [])
-				.map((issue) => ({ key: issue.path.join(".") || "(root)", message: issue.message })),
+				.map((issue) => ({
+					key: issue.path.join(".") || "(root)",
+					message: issue.message,
+				})),
 		);
 	}
 	return { ...common.data, ...auth.data, ...storage.data };

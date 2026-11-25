@@ -2,10 +2,17 @@ import { authProviderFromEnv } from "./auth/providers";
 import type { Props } from "./auth/props";
 
 export type ApiHandler = {
-	fetch(request: Request, env: Env, ctx: ExecutionContext): Response | Promise<Response>;
+	fetch(
+		request: Request,
+		env: Env,
+		ctx: ExecutionContext,
+	): Response | Promise<Response>;
 };
 
-export function isLoginAllowed(login: string | undefined, allowedLogins: string[]): boolean {
+export function isLoginAllowed(
+	login: string | undefined,
+	allowedLogins: string[],
+): boolean {
 	return login !== undefined && allowedLogins.includes(login);
 }
 

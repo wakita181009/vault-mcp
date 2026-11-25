@@ -14,7 +14,9 @@ const REQUIRED = {
 };
 
 function parse(overrides: Record<string, string> = {}) {
-	return parseEnv({ ...REQUIRED, ...overrides } as unknown as Parameters<typeof parseEnv>[0]);
+	return parseEnv({ ...REQUIRED, ...overrides } as unknown as Parameters<
+		typeof parseEnv
+	>[0]);
 }
 
 function branchOf(config: VaultEnvConfig): string | undefined {
@@ -42,21 +44,27 @@ describe("parseEnv", () => {
 
 	it("throws naming the missing required secret", () => {
 		const { VAULT_OWNER: _omit, ...withoutOwner } = REQUIRED;
-		expect(() => parseEnv(withoutOwner as unknown as Parameters<typeof parseEnv>[0])).toThrow(
-			/VAULT_OWNER/,
-		);
+		expect(() =>
+			parseEnv(withoutOwner as unknown as Parameters<typeof parseEnv>[0]),
+		).toThrow(/VAULT_OWNER/);
 	});
 
 	it("rejects a classic (non-fine-grained) PAT", () => {
-		expect(() => parse({ VAULT_GITHUB_TOKEN: "ghp_classic" })).toThrow(/VAULT_GITHUB_TOKEN/);
+		expect(() => parse({ VAULT_GITHUB_TOKEN: "ghp_classic" })).toThrow(
+			/VAULT_GITHUB_TOKEN/,
+		);
 	});
 
 	it("rejects a too-short cookie key", () => {
-		expect(() => parse({ COOKIE_ENCRYPTION_KEY: "short" })).toThrow(/COOKIE_ENCRYPTION_KEY/);
+		expect(() => parse({ COOKIE_ENCRYPTION_KEY: "short" })).toThrow(
+			/COOKIE_ENCRYPTION_KEY/,
+		);
 	});
 
 	it("labels a top-level (non-object) env as (root)", () => {
-		expect(() => parseEnv("nope" as unknown as Parameters<typeof parseEnv>[0])).toThrow(/\(root\)/);
+		expect(() =>
+			parseEnv("nope" as unknown as Parameters<typeof parseEnv>[0]),
+		).toThrow(/\(root\)/);
 	});
 });
 
@@ -77,23 +85,25 @@ describe("parseEnv AUTH_PROVIDER", () => {
 	});
 
 	it("accepts a google deploy without any GitHub OAuth app keys", () => {
-		const config = parseEnv(GOOGLE as unknown as Parameters<typeof parseEnv>[0]);
+		const config = parseEnv(
+			GOOGLE as unknown as Parameters<typeof parseEnv>[0],
+		);
 		expect(config.AUTH_PROVIDER).toBe("google");
 		expect(branchOf(config)).toBe("main");
 	});
 
 	it("requires the Google OAuth app keys when google is selected", () => {
 		const { GOOGLE_CLIENT_SECRET: _omit, ...without } = GOOGLE;
-		expect(() => parseEnv(without as unknown as Parameters<typeof parseEnv>[0])).toThrow(
-			/GOOGLE_CLIENT_SECRET/,
-		);
+		expect(() =>
+			parseEnv(without as unknown as Parameters<typeof parseEnv>[0]),
+		).toThrow(/GOOGLE_CLIENT_SECRET/);
 	});
 
 	it("requires the Google allowlist when google is selected", () => {
 		const { VAULT_ALLOWED_GOOGLE_EMAILS: _omit, ...without } = GOOGLE;
-		expect(() => parseEnv(without as unknown as Parameters<typeof parseEnv>[0])).toThrow(
-			/VAULT_ALLOWED_GOOGLE_EMAILS/,
-		);
+		expect(() =>
+			parseEnv(without as unknown as Parameters<typeof parseEnv>[0]),
+		).toThrow(/VAULT_ALLOWED_GOOGLE_EMAILS/);
 	});
 
 	it("rejects an unknown provider", () => {
@@ -112,7 +122,9 @@ describe("parseEnv AUTH_PROVIDER", () => {
 		VAULT_ALLOWED_OIDC_EMAILS: "owner@example.com",
 	};
 	const parseOidc = (overrides: Record<string, unknown> = {}) =>
-		parseEnv({ ...OIDC, ...overrides } as unknown as Parameters<typeof parseEnv>[0]);
+		parseEnv({ ...OIDC, ...overrides } as unknown as Parameters<
+			typeof parseEnv
+		>[0]);
 
 	it("accepts an oidc deploy with only the OIDC keys", () => {
 		const config = parseOidc();
@@ -121,22 +133,30 @@ describe("parseEnv AUTH_PROVIDER", () => {
 	});
 
 	it("requires an https issuer URL", () => {
-		expect(() => parseOidc({ OIDC_ISSUER_URL: "http://login.example" })).toThrow(/OIDC_ISSUER_URL/);
-		expect(() => parseOidc({ OIDC_ISSUER_URL: "not a url" })).toThrow(/OIDC_ISSUER_URL/);
-		expect(() => parseOidc({ OIDC_ISSUER_URL: "https://login.example/?x=1" })).toThrow(
-			/query string/,
+		expect(() =>
+			parseOidc({ OIDC_ISSUER_URL: "http://login.example" }),
+		).toThrow(/OIDC_ISSUER_URL/);
+		expect(() => parseOidc({ OIDC_ISSUER_URL: "not a url" })).toThrow(
+			/OIDC_ISSUER_URL/,
 		);
+		expect(() =>
+			parseOidc({ OIDC_ISSUER_URL: "https://login.example/?x=1" }),
+		).toThrow(/query string/);
 	});
 
 	it("requires the OIDC client keys and allowlist", () => {
-		expect(() => parseOidc({ OIDC_CLIENT_SECRET: undefined })).toThrow(/OIDC_CLIENT_SECRET/);
+		expect(() => parseOidc({ OIDC_CLIENT_SECRET: undefined })).toThrow(
+			/OIDC_CLIENT_SECRET/,
+		);
 		expect(() => parseOidc({ VAULT_ALLOWED_OIDC_EMAILS: undefined })).toThrow(
 			/VAULT_ALLOWED_OIDC_EMAILS/,
 		);
 	});
 
 	it("only accepts true/false for the unverified-email opt-in", () => {
-		expect(parseOidc({ OIDC_ALLOW_UNVERIFIED_EMAIL: "true" }).AUTH_PROVIDER).toBe("oidc");
+		expect(
+			parseOidc({ OIDC_ALLOW_UNVERIFIED_EMAIL: "true" }).AUTH_PROVIDER,
+		).toBe("oidc");
 		expect(() => parseOidc({ OIDC_ALLOW_UNVERIFIED_EMAIL: "yes" })).toThrow(
 			/OIDC_ALLOW_UNVERIFIED_EMAIL/,
 		);
@@ -144,11 +164,18 @@ describe("parseEnv AUTH_PROVIDER", () => {
 });
 
 describe("parseEnv VAULT_STORAGE", () => {
-	const { VAULT_GITHUB_TOKEN: _t, VAULT_OWNER: _o, VAULT_REPO: _r, ...AUTH_ONLY } = REQUIRED;
+	const {
+		VAULT_GITHUB_TOKEN: _t,
+		VAULT_OWNER: _o,
+		VAULT_REPO: _r,
+		...AUTH_ONLY
+	} = REQUIRED;
 	const parseR2 = (overrides: Record<string, string> = {}) =>
-		parseEnv({ ...AUTH_ONLY, VAULT_STORAGE: "r2", ...overrides } as unknown as Parameters<
-			typeof parseEnv
-		>[0]);
+		parseEnv({
+			...AUTH_ONLY,
+			VAULT_STORAGE: "r2",
+			...overrides,
+		} as unknown as Parameters<typeof parseEnv>[0]);
 
 	it("defaults to github when unset", () => {
 		expect(parse().VAULT_STORAGE).toBe("github");
@@ -161,13 +188,15 @@ describe("parseEnv VAULT_STORAGE", () => {
 	});
 
 	it("still requires the GitHub vault keys when github storage is selected", () => {
-		expect(() => parseEnv(AUTH_ONLY as unknown as Parameters<typeof parseEnv>[0])).toThrow(
-			/VAULT_GITHUB_TOKEN/,
-		);
+		expect(() =>
+			parseEnv(AUTH_ONLY as unknown as Parameters<typeof parseEnv>[0]),
+		).toThrow(/VAULT_GITHUB_TOKEN/);
 	});
 
 	it("rejects an unknown backend", () => {
-		expect(() => parseR2({ VAULT_STORAGE: "dropbox" })).toThrow(/VAULT_STORAGE/);
+		expect(() => parseR2({ VAULT_STORAGE: "dropbox" })).toThrow(
+			/VAULT_STORAGE/,
+		);
 	});
 
 	describe("s3", () => {
@@ -192,23 +221,31 @@ describe("parseEnv VAULT_STORAGE", () => {
 		it("parses a raised scan budget and rejects out-of-range or non-numeric ones", () => {
 			expect(scanOf(parseS3({ VAULT_S3_SEARCH_SCAN: "500" }))).toBe(500);
 			for (const bad of ["0", "-1", "abc", "1.5", "1001"]) {
-				expect(() => parseS3({ VAULT_S3_SEARCH_SCAN: bad })).toThrow(/VAULT_S3_SEARCH_SCAN/);
+				expect(() => parseS3({ VAULT_S3_SEARCH_SCAN: bad })).toThrow(
+					/VAULT_S3_SEARCH_SCAN/,
+				);
 			}
 		});
 
 		it("requires https for the endpoint except on localhost", () => {
 			expect(() =>
-				parseS3({ VAULT_S3_ENDPOINT: "https://s3.us-west-004.backblazeb2.com" }),
+				parseS3({
+					VAULT_S3_ENDPOINT: "https://s3.us-west-004.backblazeb2.com",
+				}),
 			).not.toThrow();
-			expect(() => parseS3({ VAULT_S3_ENDPOINT: "http://localhost:9000" })).not.toThrow();
-			expect(() => parseS3({ VAULT_S3_ENDPOINT: "http://minio.example.com" })).toThrow(
-				/VAULT_S3_ENDPOINT/,
-			);
-			expect(() => parseS3({ VAULT_S3_ENDPOINT: "https://s3.example.com/?x=1" })).toThrow(
-				/VAULT_S3_ENDPOINT/,
-			);
+			expect(() =>
+				parseS3({ VAULT_S3_ENDPOINT: "http://localhost:9000" }),
+			).not.toThrow();
+			expect(() =>
+				parseS3({ VAULT_S3_ENDPOINT: "http://minio.example.com" }),
+			).toThrow(/VAULT_S3_ENDPOINT/);
+			expect(() =>
+				parseS3({ VAULT_S3_ENDPOINT: "https://s3.example.com/?x=1" }),
+			).toThrow(/VAULT_S3_ENDPOINT/);
 			// Scheme-less: reported as an issue on the key, not a bare TypeError.
-			expect(() => parseS3({ VAULT_S3_ENDPOINT: "s3.example.com" })).toThrow(/VAULT_S3_ENDPOINT/);
+			expect(() => parseS3({ VAULT_S3_ENDPOINT: "s3.example.com" })).toThrow(
+				/VAULT_S3_ENDPOINT/,
+			);
 		});
 
 		it("requires the bucket, region, and keys", () => {
@@ -220,8 +257,8 @@ describe("parseEnv VAULT_STORAGE", () => {
 
 	it("reports auth and storage errors together", () => {
 		const { GITHUB_CLIENT_ID: _c, ...noClient } = AUTH_ONLY;
-		expect(() => parseEnv(noClient as unknown as Parameters<typeof parseEnv>[0])).toThrow(
-			/GITHUB_CLIENT_ID[\s\S]*VAULT_GITHUB_TOKEN/,
-		);
+		expect(() =>
+			parseEnv(noClient as unknown as Parameters<typeof parseEnv>[0]),
+		).toThrow(/GITHUB_CLIENT_ID[\s\S]*VAULT_GITHUB_TOKEN/);
 	});
 });

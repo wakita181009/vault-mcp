@@ -58,22 +58,35 @@ export interface ApprovalDialogOptions {
 	setCookie: string;
 }
 
-export function renderApprovalDialog(request: Request, options: ApprovalDialogOptions): Response {
+export function renderApprovalDialog(
+	request: Request,
+	options: ApprovalDialogOptions,
+): Response {
 	const { client, server, state, csrfToken, setCookie } = options;
 
 	const encodedState = btoa(JSON.stringify(state));
 
 	const serverName = sanitizeText(server.name);
-	const clientName = client?.clientName ? sanitizeText(client.clientName) : "Unknown MCP Client";
-	const serverDescription = server.description ? sanitizeText(server.description) : "";
+	const clientName = client?.clientName
+		? sanitizeText(client.clientName)
+		: "Unknown MCP Client";
+	const serverDescription = server.description
+		? sanitizeText(server.description)
+		: "";
 
 	const logoUrl = server.logo ? sanitizeText(sanitizeUrl(server.logo)) : "";
-	const clientUri = client?.clientUri ? sanitizeText(sanitizeUrl(client.clientUri)) : "";
-	const policyUri = client?.policyUri ? sanitizeText(sanitizeUrl(client.policyUri)) : "";
+	const clientUri = client?.clientUri
+		? sanitizeText(sanitizeUrl(client.clientUri))
+		: "";
+	const policyUri = client?.policyUri
+		? sanitizeText(sanitizeUrl(client.policyUri))
+		: "";
 	const tosUri = client?.tosUri ? sanitizeText(sanitizeUrl(client.tosUri)) : "";
 
 	const contacts =
-		client?.contacts && client.contacts.length > 0 ? sanitizeText(client.contacts.join(", ")) : "";
+		client?.contacts && client.contacts.length > 0
+			? sanitizeText(client.contacts.join(", "))
+			: "";
 
 	const redirectUris =
 		client?.redirectUris && client.redirectUris.length > 0

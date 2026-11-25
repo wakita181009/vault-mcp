@@ -5,11 +5,16 @@ const mcpHandler = vi.hoisted(() => ({
 	fetch: vi.fn(async () => new Response("mcp")),
 }));
 vi.mock("agents/mcp/server", () => ({
-	createMcpHandler: mcpHandler.create.mockImplementation(() => mcpHandler.fetch),
+	createMcpHandler: mcpHandler.create.mockImplementation(
+		() => mcpHandler.fetch,
+	),
 }));
 
 const vaultClient = vi.hoisted(() => ({
-	listNotes: vi.fn(async () => ({ notes: [{ path: "a.md", size: 1 }], truncated: false })),
+	listNotes: vi.fn(async () => ({
+		notes: [{ path: "a.md", size: 1 }],
+		truncated: false,
+	})),
 	readNote: vi.fn(async (path: string) => ({ path, content: "body" })),
 	writeNote: vi.fn(async (path: string) => ({ path, created: true })),
 	deleteNote: vi.fn(async (path: string) => ({ path })),
@@ -26,7 +31,9 @@ const provider = vi.hoisted(() => ({
 }));
 vi.mock("../src/oauth-provider", async (importOriginal) => ({
 	...(await importOriginal<typeof import("../src/oauth-provider")>()),
-	createOAuthProvider: provider.create.mockImplementation(() => ({ fetch: provider.fetch })),
+	createOAuthProvider: provider.create.mockImplementation(() => ({
+		fetch: provider.fetch,
+	})),
 }));
 
 import { McpServer } from "@modelcontextprotocol/server";
@@ -42,7 +49,11 @@ const ctx = {} as unknown as ExecutionContext;
 const registeredTools = async () => {
 	const register = vi.spyOn(McpServer.prototype, "registerTool");
 	const server = createVaultServer(env);
-	const calls = register.mock.calls as unknown as [string, ToolConfig, ToolCallback][];
+	const calls = register.mock.calls as unknown as [
+		string,
+		ToolConfig,
+		ToolCallback,
+	][];
 	register.mockRestore();
 	return {
 		server,
@@ -80,7 +91,10 @@ describe("createVaultServer", () => {
 	it("marks reads read-only, mutations idempotent (destructive by default), all closed-world", async () => {
 		const { configs } = await registeredTools();
 		for (const name of ["list_notes", "read_note", "search_notes"]) {
-			expect(configs.get(name)?.annotations).toEqual({ readOnlyHint: true, openWorldHint: false });
+			expect(configs.get(name)?.annotations).toEqual({
+				readOnlyHint: true,
+				openWorldHint: false,
+			});
 		}
 		for (const name of ["write_note", "delete_note"]) {
 			expect(configs.get(name)?.annotations).toEqual({
@@ -123,9 +137,18 @@ describe("createVaultServer", () => {
 describe("worker entry", () => {
 	it("serves a stateless MCP handler on /mcp with a server built from the request env", async () => {
 		const req = new Request("https://mcp.example.com/mcp", { method: "POST" });
-		const reqEnv = { ...env, VAULT_ALLOWED_GITHUB_LOGINS: "octocat" } as unknown as Env;
-		const reqCtx = { props: { login: "octocat" } } as unknown as ExecutionContext;
-		await worker.fetch(req as unknown as Parameters<typeof worker.fetch>[0], reqEnv, ctx);
+		const reqEnv = {
+			...env,
+			VAULT_ALLOWED_GITHUB_LOGINS: "octocat",
+		} as unknown as Env;
+		const reqCtx = {
+			props: { login: "octocat" },
+		} as unknown as ExecutionContext;
+		await worker.fetch(
+			req as unknown as Parameters<typeof worker.fetch>[0],
+			reqEnv,
+			ctx,
+		);
 		const [apiHandler] = provider.create.mock.calls[0] as unknown as [
 			{ fetch: (r: Request, e: Env, c: ExecutionContext) => Promise<Response> },
 		];
@@ -138,16 +161,25 @@ describe("worker entry", () => {
 			allowedOriginHostnames: "*",
 		});
 		expect(mcpHandler.fetch).toHaveBeenCalledWith(req, reqEnv, reqCtx);
-		const [factory] = mcpHandler.create.mock.calls[0] as unknown as [() => McpServer];
+		const [factory] = mcpHandler.create.mock.calls[0] as unknown as [
+			() => McpServer,
+		];
 		expect(factory()).toBeInstanceOf(McpServer);
 		expect(vaultClientFromEnv).toHaveBeenCalledWith(reqEnv);
 	});
 
 	it("builds the OAuth provider for the request origin and delegates to it", async () => {
 		const req = new Request("https://mcp.example.com/authorize?x=1");
-		const res = await worker.fetch(req as unknown as Parameters<typeof worker.fetch>[0], env, ctx);
+		const res = await worker.fetch(
+			req as unknown as Parameters<typeof worker.fetch>[0],
+			env,
+			ctx,
+		);
 
-		expect(provider.create).toHaveBeenCalledWith(expect.anything(), "https://mcp.example.com");
+		expect(provider.create).toHaveBeenCalledWith(
+			expect.anything(),
+			"https://mcp.example.com",
+		);
 		expect(provider.fetch).toHaveBeenCalledWith(req, env, ctx);
 		expect(await res.text()).toBe("provider");
 	});

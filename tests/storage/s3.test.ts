@@ -19,7 +19,10 @@ type Stored = { body: string; modified: Date; headers: Record<string, string> };
  * Path-style S3 stand-in behind `fetch`. Keys come back form-encoded the way
  * AWS does it for `encoding-type=url` (space as `+`), so decoding is exercised.
  */
-function fakeS3(initial: Record<string, string> = {}, { pageSize = 1000, urlEncoded = true } = {}) {
+function fakeS3(
+	initial: Record<string, string> = {},
+	{ pageSize = 1000, urlEncoded = true } = {},
+) {
 	const objects = new Map<string, Stored>(
 		Object.entries(initial).map(([key, body], i) => [
 			key,
@@ -51,44 +54,57 @@ function fakeS3(initial: Record<string, string> = {}, { pageSize = 1000, urlEnco
 		);
 	};
 
-	const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-		const req = input instanceof Request ? input : new Request(input, init);
-		requests.push(req);
-		const url = new URL(req.url);
-		const failure = failures.get(`${req.method} ${url.pathname}`);
-		if (failure) return failure.clone();
-		if (url.pathname === "/vault" && url.searchParams.get("list-type") === "2") return list(url);
+	const fetchMock = vi.fn(
+		async (input: RequestInfo | URL, init?: RequestInit) => {
+			const req = input instanceof Request ? input : new Request(input, init);
+			requests.push(req);
+			const url = new URL(req.url);
+			const failure = failures.get(`${req.method} ${url.pathname}`);
+			if (failure) return failure.clone();
+			if (
+				url.pathname === "/vault" &&
+				url.searchParams.get("list-type") === "2"
+			)
+				return list(url);
 
-		const key = decodeURIComponent(url.pathname.replace(/^\/vault\//, ""));
-		const obj = objects.get(key);
-		switch (req.method) {
-			case "GET":
-				return obj
-					? new Response(obj.body)
-					: new Response("<Error><Code>NoSuchKey</Code></Error>", { status: 404 });
-			case "HEAD":
-				return obj
-					? new Response(null, { headers: obj.headers })
-					: new Response(null, { status: 404 });
-			case "PUT": {
-				const headers = Object.fromEntries(
-					[...req.headers].filter(([name]) => name.startsWith("x-amz-meta-")),
-				);
-				objects.set(key, { body: await req.text(), modified: new Date(), headers });
-				return new Response(null, { status: 200 });
+			const key = decodeURIComponent(url.pathname.replace(/^\/vault\//, ""));
+			const obj = objects.get(key);
+			switch (req.method) {
+				case "GET":
+					return obj
+						? new Response(obj.body)
+						: new Response("<Error><Code>NoSuchKey</Code></Error>", {
+								status: 404,
+							});
+				case "HEAD":
+					return obj
+						? new Response(null, { headers: obj.headers })
+						: new Response(null, { status: 404 });
+				case "PUT": {
+					const headers = Object.fromEntries(
+						[...req.headers].filter(([name]) => name.startsWith("x-amz-meta-")),
+					);
+					objects.set(key, {
+						body: await req.text(),
+						modified: new Date(),
+						headers,
+					});
+					return new Response(null, { status: 200 });
+				}
+				case "DELETE":
+					objects.delete(key);
+					return new Response(null, { status: 204 });
 			}
-			case "DELETE":
-				objects.delete(key);
-				return new Response(null, { status: 204 });
-		}
-		return new Response(null, { status: 405 });
-	});
+			return new Response(null, { status: 405 });
+		},
+	);
 
 	return { objects, requests, failures, fetchMock };
 }
 
 let s3: ReturnType<typeof fakeS3>;
-const storage = (config: Partial<S3StorageConfig> = {}) => new S3Storage({ ...CONFIG, ...config });
+const storage = (config: Partial<S3StorageConfig> = {}) =>
+	new S3Storage({ ...CONFIG, ...config });
 const install = (fake: ReturnType<typeof fakeS3>) => {
 	s3 = fake;
 	vi.stubGlobal("fetch", fake.fetchMock);
@@ -109,8 +125,12 @@ describe("S3Storage requests", () => {
 
 	it("uses path-style URLs on a custom endpoint, percent-encoding each key segment", async () => {
 		install(fakeS3({ "my notes/a+b (1).md": "x" }));
-		await storage({ endpoint: "https://s3.example.com/" }).readFile("my notes/a+b (1).md");
-		expect(s3.requests[0]?.url).toBe("https://s3.example.com/vault/my%20notes/a%2Bb%20(1).md");
+		await storage({ endpoint: "https://s3.example.com/" }).readFile(
+			"my notes/a+b (1).md",
+		);
+		expect(s3.requests[0]?.url).toBe(
+			"https://s3.example.com/vault/my%20notes/a%2Bb%20(1).md",
+		);
 	});
 
 	it("uses virtual-hosted AWS URLs when no endpoint is set", async () => {
@@ -120,14 +140,20 @@ describe("S3Storage requests", () => {
 		await storage({ endpoint: undefined, region: "ap-northeast-1" })
 			.listFiles()
 			.catch(() => {});
-		expect(s3.requests[0]?.url).toBe("https://vault.s3.ap-northeast-1.amazonaws.com/a.md");
-		expect(s3.requests[1]?.url).toMatch(/^https:\/\/vault\.s3\.ap-northeast-1\.amazonaws\.com\/\?/);
+		expect(s3.requests[0]?.url).toBe(
+			"https://vault.s3.ap-northeast-1.amazonaws.com/a.md",
+		);
+		expect(s3.requests[1]?.url).toMatch(
+			/^https:\/\/vault\.s3\.ap-northeast-1\.amazonaws\.com\/\?/,
+		);
 	});
 
 	it("does not retry a failed request (each retry would spend a subrequest)", async () => {
 		s3.failures.set(
 			"GET /vault/a.md",
-			new Response("<Error><Code>InternalError</Code></Error>", { status: 500 }),
+			new Response("<Error><Code>InternalError</Code></Error>", {
+				status: 500,
+			}),
 		);
 		await expect(storage().readFile("a.md")).rejects.toThrow(
 			"S3 GetObject failed: 500 InternalError",
@@ -137,7 +163,9 @@ describe("S3Storage requests", () => {
 
 	it("reports the status alone for a failed HEAD, which has no body", async () => {
 		s3.failures.set("HEAD /vault/a.md", new Response(null, { status: 403 }));
-		await expect(storage().deleteFile("a.md")).rejects.toThrow(/^S3 HeadObject failed: 403$/);
+		await expect(storage().deleteFile("a.md")).rejects.toThrow(
+			/^S3 HeadObject failed: 403$/,
+		);
 	});
 });
 
@@ -146,7 +174,11 @@ describe("S3Storage.listFiles", () => {
 		install(fakeS3({ "a b.md": "abc", "dir/日本.md": "x", "c+d%.md": "" }));
 		const { files, truncated } = await storage().listFiles();
 		expect(truncated).toBe(false);
-		expect(files.map((f) => f.path).sort()).toEqual(["a b.md", "c+d%.md", "dir/日本.md"]);
+		expect(files.map((f) => f.path).sort()).toEqual([
+			"a b.md",
+			"c+d%.md",
+			"dir/日本.md",
+		]);
 		expect(files.find((f) => f.path === "a b.md")).toMatchObject({
 			size: 3,
 			modifiedAt: new Date(0),
@@ -158,11 +190,15 @@ describe("S3Storage.listFiles", () => {
 		install(fakeS3({ "a.md": "", "b.md": "", "c.md": "" }, { pageSize: 2 }));
 		const { files } = await storage().listFiles();
 		expect(files.map((f) => f.path)).toEqual(["a.md", "b.md", "c.md"]);
-		expect(new URL(s3.requests[1]?.url ?? "").searchParams.get("continuation-token")).toBe("2");
+		expect(
+			new URL(s3.requests[1]?.url ?? "").searchParams.get("continuation-token"),
+		).toBe("2");
 	});
 
 	it("stops after five pages and flags the listing as truncated", async () => {
-		const many = Object.fromEntries(Array.from({ length: 7 }, (_, i) => [`n${i}.md`, ""]));
+		const many = Object.fromEntries(
+			Array.from({ length: 7 }, (_, i) => [`n${i}.md`, ""]),
+		);
 		install(fakeS3(many, { pageSize: 1 }));
 		const { files, truncated } = await storage().listFiles();
 		expect(files).toHaveLength(5);
@@ -171,12 +207,16 @@ describe("S3Storage.listFiles", () => {
 
 	it("skips zero-byte folder markers", async () => {
 		install(fakeS3({ "dir/": "", "dir/a.md": "x" }));
-		expect((await storage().listFiles()).files.map((f) => f.path)).toEqual(["dir/a.md"]);
+		expect((await storage().listFiles()).files.map((f) => f.path)).toEqual([
+			"dir/a.md",
+		]);
 	});
 
 	it("reads raw keys from a server that ignores encoding-type", async () => {
 		install(fakeS3({ "50%+ & <more>.md": "x" }, { urlEncoded: false }));
-		expect((await storage().listFiles()).files.map((f) => f.path)).toEqual(["50%+ & <more>.md"]);
+		expect((await storage().listFiles()).files.map((f) => f.path)).toEqual([
+			"50%+ & <more>.md",
+		]);
 	});
 
 	it("surfaces a listing error with its S3 code", async () => {
@@ -197,7 +237,9 @@ describe("S3Storage.readFile", () => {
 	});
 
 	it("throws VaultError for a missing note", async () => {
-		await expect(storage().readFile("missing.md")).rejects.toBeInstanceOf(VaultError);
+		await expect(storage().readFile("missing.md")).rejects.toBeInstanceOf(
+			VaultError,
+		);
 	});
 
 	it("treats a body-less 404 as a missing note", async () => {
@@ -218,10 +260,14 @@ describe("S3Storage.readFile", () => {
 
 describe("S3Storage.writeFile", () => {
 	it("creates a missing note as markdown", async () => {
-		expect(await storage().writeFile("new.md", "# hi")).toEqual({ created: true });
+		expect(await storage().writeFile("new.md", "# hi")).toEqual({
+			created: true,
+		});
 		expect(s3.objects.get("new.md")?.body).toBe("# hi");
 		const put = s3.requests.find((r) => r.method === "PUT");
-		expect(put?.headers.get("content-type")).toBe("text/markdown; charset=utf-8");
+		expect(put?.headers.get("content-type")).toBe(
+			"text/markdown; charset=utf-8",
+		);
 	});
 
 	it("overwrites an existing note, keeping its user metadata", async () => {
@@ -230,7 +276,9 @@ describe("S3Storage.writeFile", () => {
 			"x-amz-meta-mtime": "123",
 			"content-language": "en",
 		};
-		expect(await storage().writeFile("a.md", "new")).toEqual({ created: false });
+		expect(await storage().writeFile("a.md", "new")).toEqual({
+			created: false,
+		});
 		expect(s3.objects.get("a.md")).toMatchObject({
 			body: "new",
 			headers: { "x-amz-meta-mtime": "123" },
@@ -267,11 +315,13 @@ describe("S3Storage.searchContent", () => {
 	it("reads at most maxSearchScan notes, newest first", async () => {
 		install(fakeS3({ "old.md": "needle", "new.md": "needle" }));
 		const s = storage({ maxSearchScan: 1 });
-		expect((await s.searchContent("needle", 10, allFiles(s))).map((h) => h.path)).toEqual([
-			"new.md",
-		]);
 		expect(
-			s3.requests.filter((r) => r.method === "GET" && !r.url.includes("list-type")),
+			(await s.searchContent("needle", 10, allFiles(s))).map((h) => h.path),
+		).toEqual(["new.md"]);
+		expect(
+			s3.requests.filter(
+				(r) => r.method === "GET" && !r.url.includes("list-type"),
+			),
 		).toHaveLength(1);
 	});
 
@@ -291,9 +341,15 @@ describe("S3Storage behind the VaultClient policy", () => {
 			allowedPrefixes: [],
 			deniedPrefixes: [".obsidian/"],
 		});
-		await expect(client.readNote("./.obsidian/x.md")).rejects.toThrow(/Invalid path/);
-		await expect(client.writeNote("./.obsidian/x.md", "pwn")).rejects.toThrow(/Invalid path/);
-		await expect(client.deleteNote("./.obsidian/x.md")).rejects.toThrow(/Invalid path/);
+		await expect(client.readNote("./.obsidian/x.md")).rejects.toThrow(
+			/Invalid path/,
+		);
+		await expect(client.writeNote("./.obsidian/x.md", "pwn")).rejects.toThrow(
+			/Invalid path/,
+		);
+		await expect(client.deleteNote("./.obsidian/x.md")).rejects.toThrow(
+			/Invalid path/,
+		);
 		expect(s3.requests).toEqual([]);
 		expect(s3.objects.get(".obsidian/x.md")?.body).toBe("hidden");
 	});
@@ -308,9 +364,9 @@ describe("parseListPage", () => {
 	});
 
 	it("tolerates missing Size/LastModified and leaves unknown entities as-is", () => {
-		expect(parseListPage("<Contents><Key>&#X41;&nbsp;.md</Key></Contents>").objects).toEqual([
-			{ key: "A&nbsp;.md", size: 0 },
-		]);
+		expect(
+			parseListPage("<Contents><Key>&#X41;&nbsp;.md</Key></Contents>").objects,
+		).toEqual([{ key: "A&nbsp;.md", size: 0 }]);
 	});
 
 	it("drops a key that is not valid UTF-8 instead of failing the page", () => {
@@ -321,12 +377,15 @@ describe("parseListPage", () => {
 	});
 
 	it("leaves an out-of-range numeric entity as-is", () => {
-		expect(parseListPage("<Contents><Key>&#x110000;.md</Key></Contents>").objects[0]?.key).toBe(
-			"&#x110000;.md",
-		);
+		expect(
+			parseListPage("<Contents><Key>&#x110000;.md</Key></Contents>").objects[0]
+				?.key,
+		).toBe("&#x110000;.md");
 	});
 
 	it("ignores a Contents entry without a key", () => {
-		expect(parseListPage("<Contents><Size>1</Size></Contents>").objects).toEqual([]);
+		expect(
+			parseListPage("<Contents><Size>1</Size></Contents>").objects,
+		).toEqual([]);
 	});
 });

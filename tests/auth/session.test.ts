@@ -31,9 +31,14 @@ const reqInfo = { clientId: "c1", scope: ["read"] } as unknown as Parameters<
 const cookieValue = (setCookie: string): string =>
 	setCookie.split(";")[0].split("=").slice(1).join("=");
 
-const callbackRequest = (state: string, consentedHash: string | null): Request =>
+const callbackRequest = (
+	state: string,
+	consentedHash: string | null,
+): Request =>
 	new Request(`https://mcp.example/callback?state=${state}`, {
-		headers: consentedHash ? { Cookie: `__Host-CONSENTED_STATE=${consentedHash}` } : {},
+		headers: consentedHash
+			? { Cookie: `__Host-CONSENTED_STATE=${consentedHash}` }
+			: {},
 	});
 
 const SECRET = "test-cookie-signing-secret";
@@ -45,14 +50,22 @@ const requestWithCookie = (cookie: string): Request =>
 
 describe("approved-client cookie roundtrip", () => {
 	it("recognizes a client it just signed into the cookie", async () => {
-		const setCookie = await addApprovedClient(requestWithCookie(""), "client-1", SECRET);
+		const setCookie = await addApprovedClient(
+			requestWithCookie(""),
+			"client-1",
+			SECRET,
+		);
 		const req = requestWithCookie(cookiePair(setCookie));
 		expect(await isClientApproved(req, "client-1", SECRET)).toBe(true);
 		expect(await isClientApproved(req, "client-2", SECRET)).toBe(false);
 	});
 
 	it("accumulates clients across successive approvals", async () => {
-		const first = await addApprovedClient(requestWithCookie(""), "client-1", SECRET);
+		const first = await addApprovedClient(
+			requestWithCookie(""),
+			"client-1",
+			SECRET,
+		);
 		const second = await addApprovedClient(
 			requestWithCookie(cookiePair(first)),
 			"client-2",
@@ -64,13 +77,23 @@ describe("approved-client cookie roundtrip", () => {
 	});
 
 	it("rejects a cookie verified with the wrong secret", async () => {
-		const setCookie = await addApprovedClient(requestWithCookie(""), "client-1", SECRET);
+		const setCookie = await addApprovedClient(
+			requestWithCookie(""),
+			"client-1",
+			SECRET,
+		);
 		const req = requestWithCookie(cookiePair(setCookie));
-		expect(await isClientApproved(req, "client-1", "a-different-secret")).toBe(false);
+		expect(await isClientApproved(req, "client-1", "a-different-secret")).toBe(
+			false,
+		);
 	});
 
 	it("rejects a tampered signature", async () => {
-		const setCookie = await addApprovedClient(requestWithCookie(""), "client-1", SECRET);
+		const setCookie = await addApprovedClient(
+			requestWithCookie(""),
+			"client-1",
+			SECRET,
+		);
 		const [name, value] = cookiePair(setCookie).split("=");
 		const [sig, payload] = value.split(".");
 		const badSig = `${sig[0] === "0" ? "1" : "0"}${sig.slice(1)}`;
@@ -79,7 +102,11 @@ describe("approved-client cookie roundtrip", () => {
 	});
 
 	it("rejects a payload that was swapped without re-signing", async () => {
-		const setCookie = await addApprovedClient(requestWithCookie(""), "client-1", SECRET);
+		const setCookie = await addApprovedClient(
+			requestWithCookie(""),
+			"client-1",
+			SECRET,
+		);
 		const [name, value] = cookiePair(setCookie).split("=");
 		const [sig] = value.split(".");
 		const forgedPayload = btoa(JSON.stringify(["client-evil"]));
@@ -88,7 +115,9 @@ describe("approved-client cookie roundtrip", () => {
 	});
 
 	it("returns false when no cookie is present", async () => {
-		expect(await isClientApproved(requestWithCookie(""), "client-1", SECRET)).toBe(false);
+		expect(
+			await isClientApproved(requestWithCookie(""), "client-1", SECRET),
+		).toBe(false);
 	});
 });
 
@@ -113,20 +142,27 @@ describe("validateCSRFToken", () => {
 
 	it("throws when the cookie token is missing", () => {
 		const { token } = generateCSRFProtection();
-		expect(() => validateCSRFToken(formWith(token), requestWithCookie(""))).toThrow(OAuthError);
+		expect(() =>
+			validateCSRFToken(formWith(token), requestWithCookie("")),
+		).toThrow(OAuthError);
 	});
 
 	it("throws when the tokens do not match", () => {
 		const { setCookie } = generateCSRFProtection();
 		const req = requestWithCookie(cookiePair(setCookie));
-		expect(() => validateCSRFToken(formWith("not-the-token"), req)).toThrow(/mismatch/);
+		expect(() => validateCSRFToken(formWith("not-the-token"), req)).toThrow(
+			/mismatch/,
+		);
 	});
 });
 
 describe("OAuth state lifecycle", () => {
 	it("stores the request under a TTL-bounded key and returns a token", async () => {
 		const kv = makeKV();
-		const stateToken = await createOAuthState(reqInfo, kv as unknown as KVNamespace);
+		const stateToken = await createOAuthState(
+			reqInfo,
+			kv as unknown as KVNamespace,
+		);
 		expect(stateToken).toMatch(/[0-9a-f-]{36}/);
 		expect(kv.put).toHaveBeenCalledWith(
 			`oauth:state:${stateToken}`,
@@ -142,7 +178,10 @@ describe("OAuth state lifecycle", () => {
 
 	it("round-trips create → bind → validate and consumes both", async () => {
 		const kv = makeKV();
-		const stateToken = await createOAuthState(reqInfo, kv as unknown as KVNamespace);
+		const stateToken = await createOAuthState(
+			reqInfo,
+			kv as unknown as KVNamespace,
+		);
 		const setCookie = await bindStateToSession(stateToken);
 		const req = callbackRequest(stateToken, cookieValue(setCookie));
 
@@ -155,35 +194,41 @@ describe("OAuth state lifecycle", () => {
 	it("rejects a missing state parameter", async () => {
 		const kv = makeKV();
 		const req = new Request("https://mcp.example/callback");
-		await expect(validateOAuthState(req, kv as unknown as KVNamespace)).rejects.toThrow(
-			/Missing state/,
-		);
+		await expect(
+			validateOAuthState(req, kv as unknown as KVNamespace),
+		).rejects.toThrow(/Missing state/);
 	});
 
 	it("rejects a state that is not in KV", async () => {
 		const kv = makeKV();
 		const req = callbackRequest("unknown", "deadbeef");
-		await expect(validateOAuthState(req, kv as unknown as KVNamespace)).rejects.toThrow(
-			/Invalid or expired/,
-		);
+		await expect(
+			validateOAuthState(req, kv as unknown as KVNamespace),
+		).rejects.toThrow(/Invalid or expired/);
 	});
 
 	it("rejects when the session binding cookie is absent", async () => {
 		const kv = makeKV();
-		const stateToken = await createOAuthState(reqInfo, kv as unknown as KVNamespace);
-		const req = callbackRequest(stateToken, null);
-		await expect(validateOAuthState(req, kv as unknown as KVNamespace)).rejects.toThrow(
-			/Missing session binding/,
+		const stateToken = await createOAuthState(
+			reqInfo,
+			kv as unknown as KVNamespace,
 		);
+		const req = callbackRequest(stateToken, null);
+		await expect(
+			validateOAuthState(req, kv as unknown as KVNamespace),
+		).rejects.toThrow(/Missing session binding/);
 	});
 
 	it("rejects when the cookie hash does not match the state", async () => {
 		const kv = makeKV();
-		const stateToken = await createOAuthState(reqInfo, kv as unknown as KVNamespace);
-		const req = callbackRequest(stateToken, "0".repeat(64));
-		await expect(validateOAuthState(req, kv as unknown as KVNamespace)).rejects.toThrow(
-			/does not match session/,
+		const stateToken = await createOAuthState(
+			reqInfo,
+			kv as unknown as KVNamespace,
 		);
+		const req = callbackRequest(stateToken, "0".repeat(64));
+		await expect(
+			validateOAuthState(req, kv as unknown as KVNamespace),
+		).rejects.toThrow(/does not match session/);
 	});
 
 	it("raises a server error when the stored state is not valid JSON", async () => {
@@ -191,7 +236,9 @@ describe("OAuth state lifecycle", () => {
 		const setCookie = await bindStateToSession("corrupt");
 		kv.store.set("oauth:state:corrupt", "not-json{");
 		const req = callbackRequest("corrupt", cookieValue(setCookie));
-		await expect(validateOAuthState(req, kv as unknown as KVNamespace)).rejects.toMatchObject({
+		await expect(
+			validateOAuthState(req, kv as unknown as KVNamespace),
+		).rejects.toMatchObject({
 			code: "server_error",
 		});
 	});
@@ -204,12 +251,16 @@ describe("approved-client cookie edge cases", () => {
 	});
 
 	it("treats a payload that is not valid base64 as no approvals instead of throwing", async () => {
-		const req = requestWithCookie("__Host-APPROVED_CLIENTS=abcd.!!not-base64!!");
+		const req = requestWithCookie(
+			"__Host-APPROVED_CLIENTS=abcd.!!not-base64!!",
+		);
 		expect(await isClientApproved(req, "client-1", SECRET)).toBe(false);
 	});
 
 	it("drops an undecodable cookie when adding a new approval", async () => {
-		const req = requestWithCookie("__Host-APPROVED_CLIENTS=abcd.!!not-base64!!");
+		const req = requestWithCookie(
+			"__Host-APPROVED_CLIENTS=abcd.!!not-base64!!",
+		);
 		const setCookie = await addApprovedClient(req, "client-1", SECRET);
 		const next = requestWithCookie(cookiePair(setCookie));
 		expect(await isClientApproved(next, "client-1", SECRET)).toBe(true);

@@ -29,7 +29,9 @@ import type { StorageBackendName } from "./storage/schema";
  * Both are absent from the `wrangler types` output, so we augment them here.
  */
 type CommonEnv = z.input<typeof commonEnvSchema>;
-type ProviderKeys<Schema extends z.ZodTypeAny> = Partial<Omit<z.input<Schema>, "AUTH_PROVIDER">>;
+type ProviderKeys<Schema extends z.ZodTypeAny> = Partial<
+	Omit<z.input<Schema>, "AUTH_PROVIDER">
+>;
 type VaultEnv = CommonEnv & { AUTH_PROVIDER?: AuthProviderName } & ProviderKeys<
 		typeof githubAuthSchema
 	> &

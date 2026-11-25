@@ -12,12 +12,17 @@ import { createVaultServer } from "../src/index";
 
 const HOST = "vault-mcp.example.workers.dev";
 const PROTOCOL = "2025-06-18";
-const handler = createMcpHandler(() => createVaultServer({} as Env), { route: "/mcp" });
+const handler = createMcpHandler(() => createVaultServer({} as Env), {
+	route: "/mcp",
+});
 
 // The handler validates the Host header, which Node's Request does not add itself.
 const send = (init: RequestInit & { headers?: Record<string, string> }) =>
 	handler(
-		new Request(`https://${HOST}/mcp`, { ...init, headers: { host: HOST, ...init.headers } }),
+		new Request(`https://${HOST}/mcp`, {
+			...init,
+			headers: { host: HOST, ...init.headers },
+		}),
 		{},
 		{} as ExecutionContext,
 	);
@@ -32,7 +37,9 @@ const rpc = async (method: string, params?: unknown) => {
 		},
 		body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
 	});
-	const data = (await res.text()).split("\n").find((line) => line.startsWith("data: "));
+	const data = (await res.text())
+		.split("\n")
+		.find((line) => line.startsWith("data: "));
 	return { res, body: JSON.parse(data?.slice("data: ".length) ?? "null") };
 };
 
@@ -50,7 +57,10 @@ describe("stateless MCP handler", () => {
 
 	it("lists the five note tools with JSON input schemas", async () => {
 		const { body } = await rpc("tools/list");
-		const tools = body.result.tools as { name: string; inputSchema: { type: string } }[];
+		const tools = body.result.tools as {
+			name: string;
+			inputSchema: { type: string };
+		}[];
 		expect(tools.map((t) => t.name)).toEqual([
 			"list_notes",
 			"read_note",
@@ -62,19 +72,28 @@ describe("stateless MCP handler", () => {
 	});
 
 	it("runs a tool call without any prior request in the same session", async () => {
-		const { body } = await rpc("tools/call", { name: "read_note", arguments: { path: "a.md" } });
+		const { body } = await rpc("tools/call", {
+			name: "read_note",
+			arguments: { path: "a.md" },
+		});
 		expect(body.result.content[0].text).toBe("BODY");
 	});
 
 	it("rejects invalid tool arguments as a tool error", async () => {
-		const { body } = await rpc("tools/call", { name: "read_note", arguments: {} });
+		const { body } = await rpc("tools/call", {
+			name: "read_note",
+			arguments: {},
+		});
 		expect(body.result.isError).toBe(true);
 	});
 
 	it("refuses the 2025 session stream (GET) since no session exists", async () => {
 		const res = await send({
 			method: "GET",
-			headers: { accept: "text/event-stream", "mcp-protocol-version": PROTOCOL },
+			headers: {
+				accept: "text/event-stream",
+				"mcp-protocol-version": PROTOCOL,
+			},
 		});
 		expect(res.status).toBe(405);
 	});

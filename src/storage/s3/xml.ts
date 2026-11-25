@@ -21,16 +21,19 @@ const XML_ENTITIES: Record<string, string> = {
 };
 
 function decodeXml(text: string): string {
-	return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (entity, body: string) => {
-		if (body[0] === "#") {
-			const code =
-				body[1] === "x" || body[1] === "X"
-					? Number.parseInt(body.slice(2), 16)
-					: Number(body.slice(1));
-			return code <= 0x10ffff ? String.fromCodePoint(code) : entity;
-		}
-		return XML_ENTITIES[body] ?? entity;
-	});
+	return text.replace(
+		/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi,
+		(entity, body: string) => {
+			if (body[0] === "#") {
+				const code =
+					body[1] === "x" || body[1] === "X"
+						? Number.parseInt(body.slice(2), 16)
+						: Number(body.slice(1));
+				return code <= 0x10ffff ? String.fromCodePoint(code) : entity;
+			}
+			return XML_ENTITIES[body] ?? entity;
+		},
+	);
 }
 
 function tagText(xml: string, tag: string): string | undefined {
@@ -56,9 +59,12 @@ export function parseListPage(xml: string): ListPage {
 	// Honour the response, not the request: a compatible server that ignores
 	// `encoding-type` returns raw keys, and decoding those would corrupt any `%` or `+`.
 	const urlEncoded = tagText(xml, "EncodingType") === "url";
-	const objects = [...xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)].flatMap(([, block]) => {
+	const objects = [
+		...xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g),
+	].flatMap(([, block]) => {
 		const raw = tagText(block, "Key");
-		const key = raw === undefined ? undefined : urlEncoded ? decodeKey(raw) : raw;
+		const key =
+			raw === undefined ? undefined : urlEncoded ? decodeKey(raw) : raw;
 		if (key === undefined) return [];
 		const modified = tagText(block, "LastModified");
 		return [

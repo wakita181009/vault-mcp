@@ -9,7 +9,10 @@ export const githubStorageSchema = z.object({
 	// placeholder early rather than on the first GitHub API 401.
 	VAULT_GITHUB_TOKEN: z
 		.string()
-		.startsWith("github_pat_", "must be a fine-grained PAT (starts with `github_pat_`)"),
+		.startsWith(
+			"github_pat_",
+			"must be a fine-grained PAT (starts with `github_pat_`)",
+		),
 	// Vault target. Also secrets, not committed vars: this is a public template,
 	// so committing them would leak the private vault.
 	VAULT_OWNER: z.string().min(1),

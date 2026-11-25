@@ -4,7 +4,10 @@ import { s3StorageFromEnv } from "./s3";
 import type { StorageEnvConfig } from "./schema";
 import type { VaultStorage } from "./types";
 
-export function storageFromEnv(config: StorageEnvConfig, env: Env): VaultStorage {
+export function storageFromEnv(
+	config: StorageEnvConfig,
+	env: Env,
+): VaultStorage {
 	switch (config.VAULT_STORAGE) {
 		case "github":
 			return githubStorageFromEnv(config);

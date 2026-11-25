@@ -15,16 +15,23 @@ import { VaultError } from "../src/vault";
 
 const okClient: VaultReader = {
 	listNotes: async (dir?: string) => ({
-		notes: dir === "sub" ? [{ path: "sub/a.md", size: 1 }] : [{ path: "a.md", size: 1 }],
+		notes:
+			dir === "sub"
+				? [{ path: "sub/a.md", size: 1 }]
+				: [{ path: "a.md", size: 1 }],
 		truncated: false,
 	}),
 	readNote: async (path: string) => ({ path, content: "hello world" }),
-	searchNotes: async () => [{ path: "a.md", fragments: ["frag one", "frag two"] }],
+	searchNotes: async () => [
+		{ path: "a.md", fragments: ["frag one", "frag two"] },
+	],
 };
 
 describe("textResult / errorResult", () => {
 	it("wraps text in the MCP content shape", () => {
-		expect(textResult("hi")).toEqual({ content: [{ type: "text", text: "hi" }] });
+		expect(textResult("hi")).toEqual({
+			content: [{ type: "text", text: "hi" }],
+		});
 	});
 
 	it("surfaces a VaultError message verbatim and flags isError", () => {

@@ -5,7 +5,11 @@ import { googleProvider } from "./google";
 import { oidcProvider } from "./oidc";
 import type { UpstreamProvider } from "./types";
 
-export type { OAuthEndpoints, UpstreamIdentity, UpstreamProvider } from "./types";
+export type {
+	OAuthEndpoints,
+	UpstreamIdentity,
+	UpstreamProvider,
+} from "./types";
 export { UpstreamIdentityError } from "./types";
 
 const PROVIDERS: Record<AuthProviderName, UpstreamProvider> = {
@@ -22,13 +26,18 @@ const DEFAULT_PROVIDER: AuthProviderName = "github";
  * the full env is validated; an unknown value throws because every later step
  * would otherwise silently fall back to GitHub.
  */
-export function authProviderFromEnv(env: Pick<Env, "AUTH_PROVIDER">): UpstreamProvider {
+export function authProviderFromEnv(
+	env: Pick<Env, "AUTH_PROVIDER">,
+): UpstreamProvider {
 	const name = env.AUTH_PROVIDER ?? DEFAULT_PROVIDER;
 	// `hasOwn` rather than an index lookup so "constructor" and friends are
 	// rejected with the same message as any other unknown value.
 	if (!Object.hasOwn(PROVIDERS, name)) {
 		throw invalidEnvError([
-			{ key: "AUTH_PROVIDER", message: `expected one of ${Object.keys(PROVIDERS).join(", ")}` },
+			{
+				key: "AUTH_PROVIDER",
+				message: `expected one of ${Object.keys(PROVIDERS).join(", ")}`,
+			},
 		]);
 	}
 	return PROVIDERS[name as AuthProviderName];

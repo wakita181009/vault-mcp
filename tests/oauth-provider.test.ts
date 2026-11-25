@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const github = vi.hoisted(() => ({
 	fetch: vi.fn(async () => new Response("github", { status: 200 })),
 }));
-vi.mock("../src/auth/handler", () => ({ createAuthHandler: vi.fn(() => github) }));
+vi.mock("../src/auth/handler", () => ({
+	createAuthHandler: vi.fn(() => github),
+}));
 
 import { createOAuthProvider } from "../src/oauth-provider";
 
@@ -11,17 +13,28 @@ import { createOAuthProvider } from "../src/oauth-provider";
 // provider wiring without a Workers runtime.
 const env = {} as unknown as Env;
 const ctx = {} as unknown as ExecutionContext;
-const apiHandler = { fetch: () => new Response("unreachable", { status: 500 }) };
+const apiHandler = {
+	fetch: () => new Response("unreachable", { status: 500 }),
+};
 
 const worker = {
 	fetch: (req: Request) =>
-		createOAuthProvider(apiHandler, new URL(req.url).origin).fetch(req, env, ctx),
+		createOAuthProvider(apiHandler, new URL(req.url).origin).fetch(
+			req,
+			env,
+			ctx,
+		),
 };
 
 const protectedResourceMetadata = async (origin: string) => {
-	const res = await worker.fetch(new Request(`${origin}/.well-known/oauth-protected-resource/mcp`));
+	const res = await worker.fetch(
+		new Request(`${origin}/.well-known/oauth-protected-resource/mcp`),
+	);
 	expect(res.status).toBe(200);
-	return (await res.json()) as { resource: string; authorization_servers: string[] };
+	return (await res.json()) as {
+		resource: string;
+		authorization_servers: string[];
+	};
 };
 
 beforeEach(() => vi.clearAllMocks());
@@ -42,9 +55,13 @@ describe("OAuthProvider wiring", () => {
 	});
 
 	it("advertises the request origin plus /mcp as the canonical resource", async () => {
-		const body = await protectedResourceMetadata("https://vault-mcp.example.workers.dev");
+		const body = await protectedResourceMetadata(
+			"https://vault-mcp.example.workers.dev",
+		);
 		expect(body.resource).toBe("https://vault-mcp.example.workers.dev/mcp");
-		expect(body.authorization_servers).toEqual(["https://vault-mcp.example.workers.dev"]);
+		expect(body.authorization_servers).toEqual([
+			"https://vault-mcp.example.workers.dev",
+		]);
 	});
 
 	it("follows the origin so a custom domain and wrangler dev each get their own resource", async () => {
@@ -56,7 +73,9 @@ describe("OAuthProvider wiring", () => {
 	});
 
 	it("challenges an unauthenticated /mcp request with the matching resource metadata", async () => {
-		const res = await worker.fetch(new Request("https://mcp.example.com/mcp", { method: "POST" }));
+		const res = await worker.fetch(
+			new Request("https://mcp.example.com/mcp", { method: "POST" }),
+		);
 		expect(res.status).toBe(401);
 		expect(res.headers.get("www-authenticate")).toContain(
 			'resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource/mcp"',

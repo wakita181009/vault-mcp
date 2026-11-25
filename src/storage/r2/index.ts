@@ -1,6 +1,11 @@
 import { invalidEnvError } from "../../env-error";
 import { scanSearch } from "../scan-search";
-import { type ContentMatch, type FileEntry, VaultError, type VaultStorage } from "../types";
+import {
+	type ContentMatch,
+	type FileEntry,
+	VaultError,
+	type VaultStorage,
+} from "../types";
 
 /**
  * Cloudflare R2 backend. Object keys are vault-relative paths at the bucket
@@ -39,13 +44,18 @@ export class R2Storage implements VaultStorage {
 		return obj.text();
 	}
 
-	async writeFile(path: string, content: string): Promise<{ created: boolean }> {
+	async writeFile(
+		path: string,
+		content: string,
+	): Promise<{ created: boolean }> {
 		const existing = await this.bucket.head(path);
 		// `put` replaces custom metadata wholesale; carry over whatever a sync
 		// plugin stored on the object so an overwrite does not erase it.
 		await this.bucket.put(path, content, {
 			httpMetadata: { contentType: NOTE_CONTENT_TYPE },
-			...(existing?.customMetadata ? { customMetadata: existing.customMetadata } : {}),
+			...(existing?.customMetadata
+				? { customMetadata: existing.customMetadata }
+				: {}),
 		});
 		return { created: existing === null };
 	}
@@ -69,7 +79,10 @@ export class R2Storage implements VaultStorage {
 		});
 	}
 
-	private async listObjects(): Promise<{ objects: R2Object[]; truncated: boolean }> {
+	private async listObjects(): Promise<{
+		objects: R2Object[];
+		truncated: boolean;
+	}> {
 		const objects: R2Object[] = [];
 		let cursor: string | undefined;
 		for (let page = 0; page < MAX_LIST_PAGES; page++) {
@@ -88,7 +101,10 @@ export function r2StorageFromEnv(env: Pick<Env, "VAULT_BUCKET">): R2Storage {
 	// missing `r2_buckets` entry fails as loudly as a missing secret.
 	if (!env.VAULT_BUCKET) {
 		throw invalidEnvError([
-			{ key: "VAULT_BUCKET", message: "R2 binding is required when VAULT_STORAGE=r2" },
+			{
+				key: "VAULT_BUCKET",
+				message: "R2 binding is required when VAULT_STORAGE=r2",
+			},
 		]);
 	}
 	return new R2Storage(env.VAULT_BUCKET);

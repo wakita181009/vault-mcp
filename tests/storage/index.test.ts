@@ -34,7 +34,9 @@ describe("storageFromEnv", () => {
 	});
 
 	it("fails fast when r2 is selected but the binding is missing", () => {
-		expect(() => build({ ...AUTH, VAULT_STORAGE: "r2" })).toThrow(/VAULT_BUCKET/);
+		expect(() => build({ ...AUTH, VAULT_STORAGE: "r2" })).toThrow(
+			/VAULT_BUCKET/,
+		);
 	});
 
 	it("builds the S3 backend from its secrets", () => {

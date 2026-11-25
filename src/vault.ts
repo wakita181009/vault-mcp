@@ -1,7 +1,12 @@
 import { parseEnv } from "./config";
 import { parseList } from "./parse-list";
 import { storageFromEnv } from "./storage";
-import { type ContentMatch, type FileEntry, VaultError, type VaultStorage } from "./storage/types";
+import {
+	type ContentMatch,
+	type FileEntry,
+	VaultError,
+	type VaultStorage,
+} from "./storage/types";
 
 export { VaultError } from "./storage/types";
 
@@ -44,7 +49,8 @@ export function vaultClientFromEnv(env: Env): VaultClient {
 export function isPathVisible(path: string, config: VaultConfig): boolean {
 	const p = normalizePath(path);
 	if (p === null) return false;
-	if (config.deniedPrefixes.some((prefix) => matchesPrefix(p, prefix))) return false;
+	if (config.deniedPrefixes.some((prefix) => matchesPrefix(p, prefix)))
+		return false;
 	if (config.allowedPrefixes.length === 0) return true;
 	return config.allowedPrefixes.some((prefix) => matchesPrefix(p, prefix));
 }
@@ -62,7 +68,8 @@ export function normalizePath(path: string): string | null {
 	// `.` segment is not traversal on its own, but URL-based backends (S3, the
 	// GitHub API) collapse it, so `./.obsidian/x.md` would pass the prefix
 	// policy as written and then land on `.obsidian/x.md`.
-	if (trimmed.split("/").some((seg) => seg === ".." || seg === ".")) return null;
+	if (trimmed.split("/").some((seg) => seg === ".." || seg === "."))
+		return null;
 	return trimmed;
 }
 
@@ -76,7 +83,10 @@ function isNote(path: string): boolean {
 	return NOTE_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
-async function filenameMatches(query: string, files: Promise<FileEntry[]>): Promise<SearchHit[]> {
+async function filenameMatches(
+	query: string,
+	files: Promise<FileEntry[]>,
+): Promise<SearchHit[]> {
 	const needle = query.toLowerCase();
 	return (await files)
 		.filter((entry) => entry.path.toLowerCase().includes(needle))
@@ -89,14 +99,18 @@ export class VaultClient {
 		private readonly config: VaultConfig,
 	) {}
 
-	async listNotes(dir?: string): Promise<{ notes: NoteEntry[]; truncated: boolean }> {
+	async listNotes(
+		dir?: string,
+	): Promise<{ notes: NoteEntry[]; truncated: boolean }> {
 		const dirPrefix = dir ? this.guardReadable(dir) : null;
 		const { files, truncated } = await this.storage.listFiles();
 
 		const notes = files
 			.filter((entry) => isNote(entry.path))
 			.filter((entry) => isPathVisible(entry.path, this.config))
-			.filter((entry) => (dirPrefix ? matchesPrefix(entry.path, dirPrefix) : true))
+			.filter((entry) =>
+				dirPrefix ? matchesPrefix(entry.path, dirPrefix) : true,
+			)
 			.sort((a, b) => a.path.localeCompare(b.path));
 
 		return { notes, truncated };
@@ -108,7 +122,10 @@ export class VaultClient {
 		return { path: normalized, content };
 	}
 
-	async writeNote(path: string, content: string): Promise<{ path: string; created: boolean }> {
+	async writeNote(
+		path: string,
+		content: string,
+	): Promise<{ path: string; created: boolean }> {
 		const normalized = this.guardMutable(path);
 		const { created } = await this.storage.writeFile(normalized, content);
 		return { path: normalized, created };
@@ -139,17 +156,24 @@ export class VaultClient {
 		const visibleNotes = () => {
 			listing ??= this.storage
 				.listFiles()
-				.then(({ files }) => files.filter((entry) => this.isVisibleNote(entry.path)));
+				.then(({ files }) =>
+					files.filter((entry) => this.isVisibleNote(entry.path)),
+				);
 			return listing;
 		};
 
 		const [contentHits, filenameHits] = await Promise.all([
-			this.storage.searchContent(query, limit, visibleNotes).catch((error: unknown) => {
-				// Degrade to filename-only results, but leave a trace: a rate limit or a
-				// revoked token otherwise looks exactly like "no content matches".
-				console.warn("Content search failed; returning filename matches only:", error);
-				return [] as SearchHit[];
-			}),
+			this.storage
+				.searchContent(query, limit, visibleNotes)
+				.catch((error: unknown) => {
+					// Degrade to filename-only results, but leave a trace: a rate limit or a
+					// revoked token otherwise looks exactly like "no content matches".
+					console.warn(
+						"Content search failed; returning filename matches only:",
+						error,
+					);
+					return [] as SearchHit[];
+				}),
 			filenameMatches(query, visibleNotes()),
 		]);
 

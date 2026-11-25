@@ -27,7 +27,10 @@ export const s3StorageSchema = z.object({
 					(url.protocol === "http:" && LOOPBACK_HOSTS.has(url.hostname)))
 			);
 		}, "must be an https URL (http only for localhost)")
-		.refine((raw) => !/[?#]/.test(raw), "must not contain a query string or fragment")
+		.refine(
+			(raw) => !/[?#]/.test(raw),
+			"must not contain a query string or fragment",
+		)
 		.optional(),
 	VAULT_S3_ACCESS_KEY_ID: z.string().min(1),
 	VAULT_S3_SECRET_ACCESS_KEY: z.string().min(1),

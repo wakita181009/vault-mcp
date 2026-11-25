@@ -65,7 +65,9 @@ describe("normalizePath", () => {
 	});
 
 	it("passes through a normal nested path", () => {
-		expect(normalizePath("user_profile/identity.md")).toBe("user_profile/identity.md");
+		expect(normalizePath("user_profile/identity.md")).toBe(
+			"user_profile/identity.md",
+		);
 	});
 });
 
@@ -116,7 +118,9 @@ describe("vaultClientFromEnv", () => {
 		const client = vaultClientFromEnv(WORKER_ENV);
 		expect(client).toBeInstanceOf(VaultClient);
 		// `.git/` is denied by default, so the guard rejects before any GitHub call.
-		await expect(client.readNote(".git/config")).rejects.toBeInstanceOf(VaultError);
+		await expect(client.readNote(".git/config")).rejects.toBeInstanceOf(
+			VaultError,
+		);
 	});
 
 	it("honours explicit prefix overrides", async () => {
@@ -125,11 +129,16 @@ describe("vaultClientFromEnv", () => {
 			VAULT_ALLOWED_PREFIXES: "notes/",
 			VAULT_DENIED_PREFIXES: "",
 		} as Env);
-		await expect(client.readNote("other/a.md")).rejects.toBeInstanceOf(VaultError);
+		await expect(client.readNote("other/a.md")).rejects.toBeInstanceOf(
+			VaultError,
+		);
 	});
 
 	it("fails fast on a misconfigured env", () => {
-		const { VAULT_REPO: _omit, ...broken } = WORKER_ENV as unknown as Record<string, string>;
+		const { VAULT_REPO: _omit, ...broken } = WORKER_ENV as unknown as Record<
+			string,
+			string
+		>;
 		expect(() => vaultClientFromEnv(broken as unknown as Env)).toThrow(
 			/Invalid Worker environment/,
 		);

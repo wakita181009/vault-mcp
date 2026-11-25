@@ -1,4 +1,7 @@
-import type { AuthRequest, OAuthHelpers } from "@cloudflare/workers-oauth-provider";
+import type {
+	AuthRequest,
+	OAuthHelpers,
+} from "@cloudflare/workers-oauth-provider";
 import { Hono } from "hono";
 import { z } from "zod";
 import { renderApprovalDialog } from "./approval-dialog";
@@ -19,7 +22,11 @@ import {
 	validateCSRFToken,
 	validateOAuthState,
 } from "./session";
-import { fetchUpstreamAuthToken, getUpstreamAuthorizeUrl, redirectResponse } from "./upstream";
+import {
+	fetchUpstreamAuthToken,
+	getUpstreamAuthorizeUrl,
+	redirectResponse,
+} from "./upstream";
 
 type AuthEnv = Env & { OAUTH_PROVIDER: OAuthHelpers };
 
@@ -30,19 +37,26 @@ const CALLBACK_PATH = "/callback";
  * Everything here is provider-agnostic; `provider` supplies the endpoints,
  * credentials, and identity lookup (see `providers/`).
  */
-export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: AuthEnv }> {
+export function createAuthHandler(
+	provider: UpstreamProvider,
+): Hono<{ Bindings: AuthEnv }> {
 	const app = new Hono<{ Bindings: AuthEnv }>();
 
 	// Endpoint resolution can hit the network (OIDC discovery), so it runs
 	// *before* any OAuth state is created or consumed: a failure then costs the
 	// user nothing but a retry, instead of orphaning KV state or burning the
 	// one-shot state on the callback.
-	const resolveEndpoints = async (env: Env): Promise<[OAuthEndpoints, null] | [null, Response]> => {
+	const resolveEndpoints = async (
+		env: Env,
+	): Promise<[OAuthEndpoints, null] | [null, Response]> => {
 		try {
 			return [await provider.endpoints(env), null];
 		} catch (error) {
 			console.error("Upstream endpoint resolution failed:", error);
-			return [null, new Response("Login provider unavailable", { status: 502 })];
+			return [
+				null,
+				new Response("Login provider unavailable", { status: 502 }),
+			];
 		}
 	};
 
@@ -81,7 +95,9 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 		}
 
 		// Already approved: skip the dialog, but still bind state to the session.
-		if (await isClientApproved(c.req.raw, clientId, c.env.COOKIE_ENCRYPTION_KEY)) {
+		if (
+			await isClientApproved(c.req.raw, clientId, c.env.COOKIE_ENCRYPTION_KEY)
+		) {
 			return startUpstreamFlow(c.env, c.req.raw, oauthReqInfo);
 		}
 
@@ -127,7 +143,9 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 				c.env.COOKIE_ENCRYPTION_KEY,
 			);
 			// `await` keeps a KV failure inside this try so it maps to the 500 below.
-			return await startUpstreamFlow(c.env, c.req.raw, state.oauthReqInfo, [approvedClientCookie]);
+			return await startUpstreamFlow(c.env, c.req.raw, state.oauthReqInfo, [
+				approvedClientCookie,
+			]);
 		} catch (error) {
 			console.error("POST /authorize error:", error);
 			if (error instanceof OAuthError) {

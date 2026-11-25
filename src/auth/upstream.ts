@@ -25,7 +25,10 @@ export function getUpstreamAuthorizeUrl({
 }
 
 /** Builds a redirect response without collapsing repeated headers such as Set-Cookie. */
-export function redirectResponse(location: string, headers: HeadersInit = {}): Response {
+export function redirectResponse(
+	location: string,
+	headers: HeadersInit = {},
+): Response {
 	const responseHeaders = new Headers(headers);
 	responseHeaders.set("Location", location);
 
@@ -70,9 +73,14 @@ export async function fetchUpstreamAuthToken({
 	});
 	if (!resp.ok) {
 		console.error("Upstream token exchange failed:", await resp.text());
-		return [null, new Response("Failed to fetch access token", { status: 500 })];
+		return [
+			null,
+			new Response("Failed to fetch access token", { status: 500 }),
+		];
 	}
-	const body = tokenResponseSchema.safeParse(await resp.json().catch(() => null));
+	const body = tokenResponseSchema.safeParse(
+		await resp.json().catch(() => null),
+	);
 	if (!body.success) {
 		return [null, new Response("Missing access token", { status: 400 })];
 	}

@@ -1,7 +1,10 @@
 import { VaultError } from "./vault";
 import type { VaultClient } from "./vault";
 
-export type VaultReader = Pick<VaultClient, "listNotes" | "readNote" | "searchNotes">;
+export type VaultReader = Pick<
+	VaultClient,
+	"listNotes" | "readNote" | "searchNotes"
+>;
 
 export type VaultWriter = Pick<VaultClient, "writeNote">;
 
@@ -18,7 +21,9 @@ export function textResult(text: string): ToolResult {
 
 export function errorResult(error: unknown): ToolResult {
 	const message =
-		error instanceof VaultError ? error.message : `Vault operation failed: ${String(error)}`;
+		error instanceof VaultError
+			? error.message
+			: `Vault operation failed: ${String(error)}`;
 	return { content: [{ type: "text" as const, text: message }], isError: true };
 }
 
@@ -31,7 +36,10 @@ async function toToolResult(run: () => Promise<string>): Promise<ToolResult> {
 	}
 }
 
-export function listNotesHandler(client: VaultReader, dir?: string): Promise<ToolResult> {
+export function listNotesHandler(
+	client: VaultReader,
+	dir?: string,
+): Promise<ToolResult> {
 	return toToolResult(async () => {
 		const { notes, truncated } = await client.listNotes(dir);
 		const header = `${notes.length} note(s)${truncated ? " (listing truncated by backend)" : ""}:`;
@@ -39,7 +47,10 @@ export function listNotesHandler(client: VaultReader, dir?: string): Promise<Too
 	});
 }
 
-export function readNoteHandler(client: VaultReader, path: string): Promise<ToolResult> {
+export function readNoteHandler(
+	client: VaultReader,
+	path: string,
+): Promise<ToolResult> {
 	return toToolResult(async () => (await client.readNote(path)).content);
 }
 
@@ -54,8 +65,13 @@ export function writeNoteHandler(
 	});
 }
 
-export function deleteNoteHandler(client: VaultDeleter, path: string): Promise<ToolResult> {
-	return toToolResult(async () => `Deleted ${(await client.deleteNote(path)).path}`);
+export function deleteNoteHandler(
+	client: VaultDeleter,
+	path: string,
+): Promise<ToolResult> {
+	return toToolResult(
+		async () => `Deleted ${(await client.deleteNote(path)).path}`,
+	);
 }
 
 export function searchNotesHandler(
@@ -68,7 +84,8 @@ export function searchNotesHandler(
 		if (hits.length === 0) return `No notes matched: ${query}`;
 		return hits
 			.map((hit) => {
-				const snippet = hit.fragments.length > 0 ? `\n${hit.fragments.join("\n---\n")}` : "";
+				const snippet =
+					hit.fragments.length > 0 ? `\n${hit.fragments.join("\n---\n")}` : "";
 				return `## ${hit.path}${snippet}`;
 			})
 			.join("\n\n");

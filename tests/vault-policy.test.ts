@@ -28,24 +28,36 @@ const memoryStorage = (files: Record<string, string>): VaultStorage => ({
 
 describe("VaultClient over a non-GitHub backend", () => {
 	const client = () =>
-		new VaultClient(memoryStorage({ "notes/a.md": "alpha", ".obsidian/x.md": "hidden" }), {
-			allowedPrefixes: [],
-			deniedPrefixes: [".obsidian/"],
-		});
+		new VaultClient(
+			memoryStorage({ "notes/a.md": "alpha", ".obsidian/x.md": "hidden" }),
+			{
+				allowedPrefixes: [],
+				deniedPrefixes: [".obsidian/"],
+			},
+		);
 
 	it("lists, reads, writes, deletes and searches through the backend", async () => {
 		const c = client();
-		expect((await c.listNotes()).notes.map((n) => n.path)).toEqual(["notes/a.md"]);
+		expect((await c.listNotes()).notes.map((n) => n.path)).toEqual([
+			"notes/a.md",
+		]);
 		expect((await c.readNote("notes/a.md")).content).toBe("alpha");
-		expect(await c.writeNote("notes/b.md", "beta")).toEqual({ path: "notes/b.md", created: true });
-		expect((await c.searchNotes("b", 10)).map((h) => h.path)).toEqual(["notes/b.md"]);
+		expect(await c.writeNote("notes/b.md", "beta")).toEqual({
+			path: "notes/b.md",
+			created: true,
+		});
+		expect((await c.searchNotes("b", 10)).map((h) => h.path)).toEqual([
+			"notes/b.md",
+		]);
 		expect(await c.deleteNote("notes/b.md")).toEqual({ path: "notes/b.md" });
 		await expect(c.deleteNote("notes/b.md")).rejects.toThrow(/Note not found/);
 	});
 
 	it("still enforces policy before the backend is reached", async () => {
 		const c = client();
-		await expect(c.readNote(".obsidian/x.md")).rejects.toBeInstanceOf(VaultError);
+		await expect(c.readNote(".obsidian/x.md")).rejects.toBeInstanceOf(
+			VaultError,
+		);
 		await expect(c.writeNote("notes/a.txt", "x")).rejects.toThrow(/Not a note/);
 		await expect(c.deleteNote("../a.md")).rejects.toThrow(/Invalid path/);
 	});
@@ -55,13 +67,20 @@ describe("VaultClient search pruning hint", () => {
 	it("offers the backend only visible notes as scan candidates", async () => {
 		let candidates: string[] = [];
 		const storage: VaultStorage = {
-			...memoryStorage({ "notes/a.md": "", ".obsidian/a.md": "", "notes/a.json": "" }),
+			...memoryStorage({
+				"notes/a.md": "",
+				".obsidian/a.md": "",
+				"notes/a.json": "",
+			}),
 			searchContent: async (_q, _l, listCandidates) => {
 				candidates = (await listCandidates()).map((f) => f.path);
 				return [];
 			},
 		};
-		const c = new VaultClient(storage, { allowedPrefixes: [], deniedPrefixes: [".obsidian/"] });
+		const c = new VaultClient(storage, {
+			allowedPrefixes: [],
+			deniedPrefixes: [".obsidian/"],
+		});
 		await c.searchNotes("x", 10);
 		expect(candidates).toEqual(["notes/a.md"]);
 	});
@@ -78,17 +97,27 @@ describe("VaultClient search pruning hint", () => {
 				return [];
 			},
 		};
-		const c = new VaultClient(storage, { allowedPrefixes: [], deniedPrefixes: [] });
-		expect((await c.searchNotes("a", 10)).map((h) => h.path)).toEqual(["notes/a.md"]);
+		const c = new VaultClient(storage, {
+			allowedPrefixes: [],
+			deniedPrefixes: [],
+		});
+		expect((await c.searchNotes("a", 10)).map((h) => h.path)).toEqual([
+			"notes/a.md",
+		]);
 		expect(listFiles).toHaveBeenCalledTimes(1);
 	});
 
 	it("still drops hidden hits a backend returns despite the hint", async () => {
 		const storage: VaultStorage = {
 			...memoryStorage({}),
-			searchContent: async () => [{ path: ".obsidian/a.md", fragments: ["leak"] }],
+			searchContent: async () => [
+				{ path: ".obsidian/a.md", fragments: ["leak"] },
+			],
 		};
-		const c = new VaultClient(storage, { allowedPrefixes: [], deniedPrefixes: [".obsidian/"] });
+		const c = new VaultClient(storage, {
+			allowedPrefixes: [],
+			deniedPrefixes: [".obsidian/"],
+		});
 		expect(await c.searchNotes("leak", 10)).toEqual([]);
 	});
 });
