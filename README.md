@@ -20,7 +20,7 @@ ships generic.
 - **Auth:** OAuth via [`@cloudflare/workers-oauth-provider`](https://github.com/cloudflare/workers-oauth-provider),
   delegating sign-in to **GitHub** (default), **Google** (`AUTH_PROVIDER=google`), or any **OpenID
   Connect** IdP (`AUTH_PROVIDER=oidc`). Only identities on the provider's allowlist
-  (`VAULT_ALLOWED_GITHUB_LOGINS` / `VAULT_ALLOWED_GOOGLE_EMAILS` / `VAULT_ALLOWED_OIDC_EMAILS`) get any tools at all.
+  (`VAULT_ALLOWED_GITHUB_LOGINS` / `VAULT_ALLOWED_GOOGLE_EMAILS` / `VAULT_ALLOWED_OIDC_EMAILS`) get any tools at all; anyone else is refused at the login callback, before a grant is issued.
 - **Accesses the vault** through the GitHub API using a **separate fine-grained PAT**
   (`VAULT_GITHUB_TOKEN`) scoped to Contents Read + Write on the one vault repo — or, with
   `VAULT_STORAGE=r2`, from a **Cloudflare R2** bucket bound to the Worker — or, with
