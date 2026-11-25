@@ -15,7 +15,8 @@
 		}
 	},
 	"formatter": {
-		"enabled": false
+		"enabled": true,
+		"lineWidth": 100
 	},
 	"assist": {
 		"enabled": false
