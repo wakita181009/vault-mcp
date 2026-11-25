@@ -62,6 +62,7 @@ function appEnv(): Record<string, unknown> {
 		GITHUB_CLIENT_ID: "cid",
 		GITHUB_CLIENT_SECRET: "secret",
 		COOKIE_ENCRYPTION_KEY: SECRET,
+		VAULT_ALLOWED_GITHUB_LOGINS: "alice",
 	};
 }
 
@@ -259,6 +260,17 @@ describe("GET /callback", () => {
 		vi.unstubAllGlobals();
 	});
 
+	it("403s an identity outside the allowlist without issuing a grant", async () => {
+		vi.stubGlobal("fetch", vi.fn(async () => Response.json({ access_token: "gho_token" })));
+		octo.getAuthenticated.mockResolvedValue({ data: { login: "mallory", name: null, email: null } });
+		const { stateToken, consented } = await seedState();
+		const res = await callback(`state=${stateToken}&code=the-code`, consented);
+		expect(res.status).toBe(403);
+		expect(await res.text()).not.toContain("mallory");
+		expect(oauthProvider.completeAuthorization).not.toHaveBeenCalled();
+		vi.unstubAllGlobals();
+	});
+
 	it("400s when the authorization code is missing", async () => {
 		const { stateToken, consented } = await seedState();
 		const res = await callback(`state=${stateToken}`, consented);
@@ -285,6 +297,7 @@ describe("GET /callback with the Google provider", () => {
 		GOOGLE_CLIENT_ID: "gcid",
 		GOOGLE_CLIENT_SECRET: "gsecret",
 		COOKIE_ENCRYPTION_KEY: SECRET,
+		VAULT_ALLOWED_GOOGLE_EMAILS: "alice@example.com",
 	});
 
 	const seedState = async () => {
@@ -344,6 +357,12 @@ describe("GET /callback with the Google provider", () => {
 		);
 	});
 
+	it("403s a verified Google email outside the allowlist", async () => {
+		const { res } = await callback({ email: "bob@example.com", email_verified: true });
+		expect(res.status).toBe(403);
+		expect(oauthProvider.completeAuthorization).not.toHaveBeenCalled();
+	});
+
 	it("403s when the Google email is not verified", async () => {
 		const { res } = await callback({ email: "alice@example.com", email_verified: false });
 		expect(res.status).toBe(403);
@@ -370,6 +389,7 @@ describe("the generic OIDC provider", () => {
 		OIDC_CLIENT_SECRET: "osecret",
 		OIDC_DISPLAY_NAME: "Acme SSO",
 		COOKIE_ENCRYPTION_KEY: SECRET,
+		VAULT_ALLOWED_OIDC_EMAILS: "Alice@Example.com",
 	});
 
 	const stubIdp = (userinfo: Record<string, unknown>) => {

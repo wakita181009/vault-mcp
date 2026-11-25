@@ -1,6 +1,7 @@
 import type { AuthRequest, OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { Hono } from "hono";
 import { z } from "zod";
+import { isLoginAllowed } from "../guard";
 import { renderApprovalDialog } from "./approval-dialog";
 import {
 	type OAuthEndpoints,
@@ -187,6 +188,14 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 			throw error;
 		}
 		const { login, name, email } = identity;
+
+		// Any upstream account can finish the upstream login, so refuse the grant
+		// here rather than storing one the MCP guard would only reject later. The
+		// guard still re-checks every request, so removing a login takes effect at
+		// once for grants already issued.
+		if (!isLoginAllowed(login, provider.allowedLogins(c.env))) {
+			return c.text("This account is not allowed to access this vault", 403);
+		}
 
 		const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
 			metadata: {
