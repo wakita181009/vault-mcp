@@ -6,7 +6,12 @@
 		"useIgnoreFile": true
 	},
 	"files": {
-		"includes": ["src/**/*.ts", "tests/**/*.ts", "*.ts", "!worker-configuration.d.ts"]
+		"includes": [
+			"src/**/*.ts",
+			"tests/**/*.ts",
+			"*.ts",
+			"!worker-configuration.d.ts"
+		]
 	},
 	"linter": {
 		"enabled": true,
@@ -15,7 +20,8 @@
 		}
 	},
 	"formatter": {
-		"enabled": false
+		"enabled": true,
+		"lineWidth": 80
 	},
 	"assist": {
 		"enabled": false

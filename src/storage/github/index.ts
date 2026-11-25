@@ -1,6 +1,11 @@
 import { Octokit } from "octokit";
 import type { GitHubStorageEnvConfig } from "./schema";
-import { type ContentMatch, type FileEntry, VaultError, type VaultStorage } from "../types";
+import {
+	type ContentMatch,
+	type FileEntry,
+	VaultError,
+	type VaultStorage,
+} from "../types";
 
 /**
  * GitHub-repo backend. Obsidian Git keeps the repo up to date, so the GitHub
@@ -17,11 +22,15 @@ export type GitHubStorageConfig = {
 
 type GitTreeEntry = { path?: string; type?: string; size?: number };
 
-function isBlobEntry<T extends GitTreeEntry>(entry: T): entry is T & { path: string } {
+function isBlobEntry<T extends GitTreeEntry>(
+	entry: T,
+): entry is T & { path: string } {
 	return entry.type === "blob" && typeof entry.path === "string";
 }
 
-type ContentData = Awaited<ReturnType<Octokit["rest"]["repos"]["getContent"]>>["data"];
+type ContentData = Awaited<
+	ReturnType<Octokit["rest"]["repos"]["getContent"]>
+>["data"];
 type ContentFile = Extract<ContentData, { type: "file" }>;
 
 export class GitHubStorage implements VaultStorage {
@@ -55,11 +64,17 @@ export class GitHubStorage implements VaultStorage {
 			return decodeBase64Utf8(file.content);
 		}
 		// Files > 1MB come back with empty content; fall back to the blob API.
-		const blob = await this.octokit.rest.git.getBlob({ ...this.repoRef, file_sha: file.sha });
+		const blob = await this.octokit.rest.git.getBlob({
+			...this.repoRef,
+			file_sha: file.sha,
+		});
 		return decodeBase64Utf8(blob.data.content);
 	}
 
-	async writeFile(path: string, content: string): Promise<{ created: boolean }> {
+	async writeFile(
+		path: string,
+		content: string,
+	): Promise<{ created: boolean }> {
 		// GitHub's contents API needs the current blob sha to overwrite; its
 		// absence means the file does not exist yet and this is a create.
 		const sha = (await this.getFile(path))?.sha;
@@ -146,11 +161,15 @@ function encodeBase64Utf8(text: string): string {
 
 function isNotFound(error: unknown): boolean {
 	return (
-		typeof error === "object" && error !== null && (error as { status?: number }).status === 404
+		typeof error === "object" &&
+		error !== null &&
+		(error as { status?: number }).status === 404
 	);
 }
 
-export function githubStorageFromEnv(config: GitHubStorageEnvConfig): GitHubStorage {
+export function githubStorageFromEnv(
+	config: GitHubStorageEnvConfig,
+): GitHubStorage {
 	return new GitHubStorage({
 		owner: config.VAULT_OWNER,
 		repo: config.VAULT_REPO,

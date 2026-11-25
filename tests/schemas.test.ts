@@ -10,7 +10,9 @@ import {
 describe("list_notes input", () => {
 	it("accepts an empty object and an optional dir", () => {
 		expect(listNotesInput.parse({})).toEqual({});
-		expect(listNotesInput.parse({ dir: "user_profile" })).toEqual({ dir: "user_profile" });
+		expect(listNotesInput.parse({ dir: "user_profile" })).toEqual({
+			dir: "user_profile",
+		});
 	});
 
 	it("rejects a non-string dir", () => {
@@ -40,7 +42,10 @@ describe("write_note input", () => {
 
 describe("search_notes input", () => {
 	it("defaults limit to 10", () => {
-		expect(searchNotesInput.parse({ query: "todo" })).toEqual({ query: "todo", limit: 10 });
+		expect(searchNotesInput.parse({ query: "todo" })).toEqual({
+			query: "todo",
+			limit: 10,
+		});
 	});
 
 	it("keeps an explicit limit inside 1..30", () => {
@@ -50,9 +55,15 @@ describe("search_notes input", () => {
 
 	it("rejects out-of-range, fractional, missing, or empty-query input", () => {
 		expect(searchNotesInput.safeParse({ query: "" }).success).toBe(false);
-		expect(searchNotesInput.safeParse({ query: "q", limit: 0 }).success).toBe(false);
-		expect(searchNotesInput.safeParse({ query: "q", limit: 31 }).success).toBe(false);
-		expect(searchNotesInput.safeParse({ query: "q", limit: 2.5 }).success).toBe(false);
+		expect(searchNotesInput.safeParse({ query: "q", limit: 0 }).success).toBe(
+			false,
+		);
+		expect(searchNotesInput.safeParse({ query: "q", limit: 31 }).success).toBe(
+			false,
+		);
+		expect(searchNotesInput.safeParse({ query: "q", limit: 2.5 }).success).toBe(
+			false,
+		);
 		expect(searchNotesInput.safeParse({ limit: 5 }).success).toBe(false);
 	});
 });

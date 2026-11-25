@@ -58,18 +58,29 @@ export interface ApprovalDialogOptions {
 	setCookie: string;
 }
 
-export function renderApprovalDialog(request: Request, options: ApprovalDialogOptions): Response {
+export function renderApprovalDialog(
+	request: Request,
+	options: ApprovalDialogOptions,
+): Response {
 	const { client, server, state, csrfToken, setCookie } = options;
 
 	const encodedState = btoa(JSON.stringify(state));
 
 	const serverName = sanitizeText(server.name);
-	const clientName = client?.clientName ? sanitizeText(client.clientName) : "Unknown MCP Client";
-	const serverDescription = server.description ? sanitizeText(server.description) : "";
+	const clientName = client?.clientName
+		? sanitizeText(client.clientName)
+		: "Unknown MCP Client";
+	const serverDescription = server.description
+		? sanitizeText(server.description)
+		: "";
 
 	const logoUrl = server.logo ? sanitizeText(sanitizeUrl(server.logo)) : "";
-	const clientUri = client?.clientUri ? sanitizeText(sanitizeUrl(client.clientUri)) : "";
-	const policyUri = client?.policyUri ? sanitizeText(sanitizeUrl(client.policyUri)) : "";
+	const clientUri = client?.clientUri
+		? sanitizeText(sanitizeUrl(client.clientUri))
+		: "";
+	const policyUri = client?.policyUri
+		? sanitizeText(sanitizeUrl(client.policyUri))
+		: "";
 	const tosUri = client?.tosUri ? sanitizeText(sanitizeUrl(client.tosUri)) : "";
 
 	const contacts =
@@ -290,8 +301,8 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
               </div>
 
               ${
-					clientUri
-						? `
+								clientUri
+									? `
                 <div class="client-detail">
                   <div class="detail-label">Website:</div>
                   <div class="detail-value small">
@@ -301,12 +312,12 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
                   </div>
                 </div>
               `
-						: ""
-				}
+									: ""
+							}
 
               ${
-					policyUri
-						? `
+								policyUri
+									? `
                 <div class="client-detail">
                   <div class="detail-label">Privacy Policy:</div>
                   <div class="detail-value">
@@ -316,12 +327,12 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
                   </div>
                 </div>
               `
-						: ""
-				}
+									: ""
+							}
 
               ${
-					tosUri
-						? `
+								tosUri
+									? `
                 <div class="client-detail">
                   <div class="detail-label">Terms of Service:</div>
                   <div class="detail-value">
@@ -331,12 +342,12 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
                   </div>
                 </div>
               `
-						: ""
-				}
+									: ""
+							}
 
               ${
-					redirectUris.length > 0
-						? `
+								redirectUris.length > 0
+									? `
                 <div class="client-detail">
                   <div class="detail-label">Redirect URIs:</div>
                   <div class="detail-value small">
@@ -344,19 +355,19 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
                   </div>
                 </div>
               `
-						: ""
-				}
+									: ""
+							}
 
               ${
-					contacts
-						? `
+								contacts
+									? `
                 <div class="client-detail">
                   <div class="detail-label">Contact:</div>
                   <div class="detail-value">${contacts}</div>
                 </div>
               `
-						: ""
-				}
+									: ""
+							}
             </div>
 
             <p>This MCP Client is requesting to be authorized on ${serverName}. If you approve, you will be redirected to complete authentication.</p>

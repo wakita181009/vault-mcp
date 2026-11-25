@@ -1,4 +1,6 @@
-import OAuthProvider, { type OAuthHelpers } from "@cloudflare/workers-oauth-provider";
+import OAuthProvider, {
+	type OAuthHelpers,
+} from "@cloudflare/workers-oauth-provider";
 import { createAuthHandler } from "./auth/handler";
 import { authProviderFromEnv } from "./auth/providers";
 import type { ApiHandler } from "./guard";

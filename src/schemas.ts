@@ -13,29 +13,46 @@ export const listNotesInput = z.object({
 	dir: z
 		.string()
 		.optional()
-		.describe("Optional vault-relative directory to scope the listing to, e.g. 'user_profile'."),
+		.describe(
+			"Optional vault-relative directory to scope the listing to, e.g. 'user_profile'.",
+		),
 });
 
 export const readNoteInput = z.object({
-	path: z.string().describe("Vault-relative path to the note, e.g. 'user_profile/identity.md'."),
+	path: z
+		.string()
+		.describe(
+			"Vault-relative path to the note, e.g. 'user_profile/identity.md'.",
+		),
 });
 
 export const writeNoteInput = z.object({
-	path: z.string().describe("Vault-relative path to the note, e.g. 'user_profile/identity.md'."),
+	path: z
+		.string()
+		.describe(
+			"Vault-relative path to the note, e.g. 'user_profile/identity.md'.",
+		),
 	content: z
 		.string()
-		.describe("Full markdown content to write. Overwrites the note if it already exists."),
+		.describe(
+			"Full markdown content to write. Overwrites the note if it already exists.",
+		),
 });
 
 export const deleteNoteInput = z.object({
 	path: z
 		.string()
-		.describe("Vault-relative path to the note to delete, e.g. 'user_profile/identity.md'."),
+		.describe(
+			"Vault-relative path to the note to delete, e.g. 'user_profile/identity.md'.",
+		),
 });
 
 export const searchNotesInput = z.object({
 	// An empty query would match every filename and return an arbitrary first page.
-	query: z.string().min(1).describe("Text to search for across note contents and filenames."),
+	query: z
+		.string()
+		.min(1)
+		.describe("Text to search for across note contents and filenames."),
 	limit: z
 		.number()
 		.int()

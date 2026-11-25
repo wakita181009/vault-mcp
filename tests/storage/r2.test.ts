@@ -9,7 +9,9 @@ import { VaultError } from "../../src/storage/types";
 function fakeBucket(initial: Record<string, string> = {}, pageSize = 1000) {
 	const objects = new Map(Object.entries(initial));
 	// Insertion order stands in for upload time: later keys are newer.
-	const uploaded = new Map([...objects.keys()].map((key, i) => [key, new Date(i * 1000)]));
+	const uploaded = new Map(
+		[...objects.keys()].map((key, i) => [key, new Date(i * 1000)]),
+	);
 	const custom = new Map<string, Record<string, string>>();
 	const meta = (key: string) => ({
 		key,
@@ -21,15 +23,23 @@ function fakeBucket(initial: Record<string, string> = {}, pageSize = 1000) {
 		head: vi.fn(async (key: string) => (objects.has(key) ? meta(key) : null)),
 		get: vi.fn(async (key: string) => {
 			const body = objects.get(key);
-			return body === undefined ? null : { ...meta(key), text: async () => body };
+			return body === undefined
+				? null
+				: { ...meta(key), text: async () => body };
 		}),
-		put: vi.fn(async (key: string, value: string, options?: { customMetadata?: Record<string, string> }) => {
-			objects.set(key, value);
-			uploaded.set(key, new Date(Date.now()));
-			if (options?.customMetadata) custom.set(key, options.customMetadata);
-			else custom.delete(key);
-			return meta(key);
-		}),
+		put: vi.fn(
+			async (
+				key: string,
+				value: string,
+				options?: { customMetadata?: Record<string, string> },
+			) => {
+				objects.set(key, value);
+				uploaded.set(key, new Date(Date.now()));
+				if (options?.customMetadata) custom.set(key, options.customMetadata);
+				else custom.delete(key);
+				return meta(key);
+			},
+		),
 		delete: vi.fn(async (key: string) => {
 			objects.delete(key);
 		}),
@@ -45,7 +55,12 @@ function fakeBucket(initial: Record<string, string> = {}, pageSize = 1000) {
 			};
 		}),
 	};
-	return { bucket, objects, custom, storage: new R2Storage(bucket as unknown as R2Bucket) };
+	return {
+		bucket,
+		objects,
+		custom,
+		storage: new R2Storage(bucket as unknown as R2Bucket),
+	};
 }
 
 /** What `VaultClient` hands `searchContent`: the listing, optionally narrowed. */
@@ -67,7 +82,10 @@ describe("R2Storage.listFiles", () => {
 	});
 
 	it("follows the list cursor across pages", async () => {
-		const { storage, bucket } = fakeBucket({ "a.md": "", "b.md": "", "c.md": "" }, 2);
+		const { storage, bucket } = fakeBucket(
+			{ "a.md": "", "b.md": "", "c.md": "" },
+			2,
+		);
 		const { files, truncated } = await storage.listFiles();
 		expect(files.map((f) => f.path)).toEqual(["a.md", "b.md", "c.md"]);
 		expect(truncated).toBe(false);
@@ -76,11 +94,15 @@ describe("R2Storage.listFiles", () => {
 
 	it("skips zero-byte folder markers", async () => {
 		const { storage } = fakeBucket({ "dir/": "", "dir/a.md": "x" });
-		expect((await storage.listFiles()).files.map((f) => f.path)).toEqual(["dir/a.md"]);
+		expect((await storage.listFiles()).files.map((f) => f.path)).toEqual([
+			"dir/a.md",
+		]);
 	});
 
 	it("stops at the page cap and reports truncation", async () => {
-		const many = Object.fromEntries(Array.from({ length: 25 }, (_, i) => [`n${i}.md`, ""]));
+		const many = Object.fromEntries(
+			Array.from({ length: 25 }, (_, i) => [`n${i}.md`, ""]),
+		);
 		const { storage, bucket } = fakeBucket(many, 1);
 		const { files, truncated } = await storage.listFiles();
 		expect(truncated).toBe(true);
@@ -97,7 +119,9 @@ describe("R2Storage.readFile", () => {
 
 	it("throws VaultError for a missing key", async () => {
 		const { storage } = fakeBucket();
-		await expect(storage.readFile("nope.md")).rejects.toBeInstanceOf(VaultError);
+		await expect(storage.readFile("nope.md")).rejects.toBeInstanceOf(
+			VaultError,
+		);
 	});
 });
 
@@ -141,21 +165,33 @@ describe("R2Storage.deleteFile", () => {
 
 describe("R2Storage.searchContent", () => {
 	it("matches content case-insensitively with fragments", async () => {
-		const { storage } = fakeBucket({ "a.md": "Hello World", "b.md": "nothing here" });
-		expect(await storage.searchContent("world", 10, candidatesOf(storage))).toEqual([
-			{ path: "a.md", fragments: ["Hello World"] },
-		]);
+		const { storage } = fakeBucket({
+			"a.md": "Hello World",
+			"b.md": "nothing here",
+		});
+		expect(
+			await storage.searchContent("world", 10, candidatesOf(storage)),
+		).toEqual([{ path: "a.md", fragments: ["Hello World"] }]);
 	});
 
 	it("only reads candidates the caller accepts", async () => {
-		const { storage, bucket } = fakeBucket({ "a.md": "hit", ".obsidian/x.md": "hit" });
-		const hits = await storage.searchContent("hit", 10, candidatesOf(storage, (p) => !p.startsWith(".obsidian/")));
+		const { storage, bucket } = fakeBucket({
+			"a.md": "hit",
+			".obsidian/x.md": "hit",
+		});
+		const hits = await storage.searchContent(
+			"hit",
+			10,
+			candidatesOf(storage, (p) => !p.startsWith(".obsidian/")),
+		);
 		expect(hits.map((h) => h.path)).toEqual(["a.md"]);
 		expect(bucket.get).not.toHaveBeenCalledWith(".obsidian/x.md");
 	});
 
 	it("stops scanning once the limit is reached", async () => {
-		const many = Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`n${i}.md`, "hit"]));
+		const many = Object.fromEntries(
+			Array.from({ length: 30 }, (_, i) => [`n${i}.md`, "hit"]),
+		);
 		const { storage, bucket } = fakeBucket(many);
 		const hits = await storage.searchContent("hit", 2, candidatesOf(storage));
 		expect(hits).toHaveLength(2);
@@ -164,48 +200,77 @@ describe("R2Storage.searchContent", () => {
 	});
 
 	it("caps how many objects one search reads", async () => {
-		const many = Object.fromEntries(Array.from({ length: 600 }, (_, i) => [`n${i}.md`, "miss"]));
+		const many = Object.fromEntries(
+			Array.from({ length: 600 }, (_, i) => [`n${i}.md`, "miss"]),
+		);
 		const { storage, bucket } = fakeBucket(many);
-		expect(await storage.searchContent("hit", 10, candidatesOf(storage))).toEqual([]);
+		expect(
+			await storage.searchContent("hit", 10, candidatesOf(storage)),
+		).toEqual([]);
 		expect(bucket.get).toHaveBeenCalledTimes(500);
 	});
 
 	it("treats regex metacharacters in the query literally", async () => {
-		const { storage } = fakeBucket({ "a.md": "cost is $5 (approx)", "b.md": "cost is 55" });
-		expect((await storage.searchContent("$5 (", 10, candidatesOf(storage))).map((h) => h.path)).toEqual(["a.md"]);
+		const { storage } = fakeBucket({
+			"a.md": "cost is $5 (approx)",
+			"b.md": "cost is 55",
+		});
+		expect(
+			(await storage.searchContent("$5 (", 10, candidatesOf(storage))).map(
+				(h) => h.path,
+			),
+		).toEqual(["a.md"]);
 	});
 
 	it("scans the most recently uploaded notes first", async () => {
-		const { storage, bucket } = fakeBucket({ "old.md": "hit", "new.md": "hit" });
-		expect((await storage.searchContent("hit", 1, candidatesOf(storage))).map((h) => h.path)).toEqual(["new.md"]);
+		const { storage, bucket } = fakeBucket({
+			"old.md": "hit",
+			"new.md": "hit",
+		});
+		expect(
+			(await storage.searchContent("hit", 1, candidatesOf(storage))).map(
+				(h) => h.path,
+			),
+		).toEqual(["new.md"]);
 		expect(bucket.get.mock.calls[0]?.[0]).toBe("new.md");
 	});
 
 	it("scans candidates without a modification time last", async () => {
-		const { storage, bucket } = fakeBucket({ "undated.md": "hit", "dated.md": "hit" });
+		const { storage, bucket } = fakeBucket({
+			"undated.md": "hit",
+			"dated.md": "hit",
+		});
 		const candidates = async () => [
 			{ path: "undated.md", size: 3 },
 			{ path: "dated.md", size: 3, modifiedAt: new Date(1) },
 		];
-		expect((await storage.searchContent("hit", 1, candidates)).map((h) => h.path)).toEqual(["dated.md"]);
+		expect(
+			(await storage.searchContent("hit", 1, candidates)).map((h) => h.path),
+		).toEqual(["dated.md"]);
 		expect(bucket.get.mock.calls[0]?.[0]).toBe("dated.md");
 	});
 
 	it("keeps other hits when one object fails to read", async () => {
 		const { storage, bucket } = fakeBucket({ "a.md": "hit", "b.md": "hit" });
 		bucket.get.mockRejectedValueOnce(new Error("R2 transient"));
-		expect(await storage.searchContent("hit", 10, candidatesOf(storage))).toHaveLength(1);
+		expect(
+			await storage.searchContent("hit", 10, candidatesOf(storage)),
+		).toHaveLength(1);
 	});
 
 	it("treats an object deleted mid-scan as a non-match", async () => {
 		const { storage, bucket } = fakeBucket({ "a.md": "hit" });
 		bucket.get.mockResolvedValueOnce(null);
-		expect(await storage.searchContent("hit", 10, candidatesOf(storage))).toEqual([]);
+		expect(
+			await storage.searchContent("hit", 10, candidatesOf(storage)),
+		).toEqual([]);
 	});
 
 	it("returns nothing for an empty query without reading", async () => {
 		const { storage, bucket } = fakeBucket({ "a.md": "x" });
-		expect(await storage.searchContent("", 10, candidatesOf(storage))).toEqual([]);
+		expect(await storage.searchContent("", 10, candidatesOf(storage))).toEqual(
+			[],
+		);
 		expect(bucket.list).not.toHaveBeenCalled();
 	});
 });

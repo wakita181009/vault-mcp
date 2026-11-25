@@ -38,7 +38,8 @@ export function createVaultServer(env: Env): McpServer {
 		"list_notes",
 		{
 			title: "List notes",
-			description: "List note (markdown) paths in the vault. Optionally scope to a subdirectory.",
+			description:
+				"List note (markdown) paths in the vault. Optionally scope to a subdirectory.",
 			inputSchema: listNotesInput.shape,
 			annotations: READ_ONLY,
 		},
@@ -49,7 +50,8 @@ export function createVaultServer(env: Env): McpServer {
 		"read_note",
 		{
 			title: "Read note",
-			description: "Read the raw markdown of a single note by its vault-relative path.",
+			description:
+				"Read the raw markdown of a single note by its vault-relative path.",
 			inputSchema: readNoteInput.shape,
 			annotations: READ_ONLY,
 		},
@@ -110,5 +112,9 @@ const apiHandler = createGuardedApiHandler({
 
 export default {
 	fetch: (req, env, ctx) =>
-		createOAuthProvider(apiHandler, new URL(req.url).origin).fetch(req, env, ctx),
+		createOAuthProvider(apiHandler, new URL(req.url).origin).fetch(
+			req,
+			env,
+			ctx,
+		),
 } satisfies ExportedHandler<Env>;

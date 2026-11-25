@@ -7,7 +7,10 @@ export type OidcEndpoints = {
 	userinfoUrl: string;
 };
 
-const httpsUrl = z.string().url().startsWith("https://", "must be an https URL");
+const httpsUrl = z
+	.string()
+	.url()
+	.startsWith("https://", "must be an https URL");
 
 const discoverySchema = z.object({
 	issuer: z.string().min(1),
@@ -25,20 +28,27 @@ const stripTrailingSlash = (url: string) => url.replace(/\/+$/, "");
 const discoveryCache = new Map<string, Promise<OidcEndpoints>>();
 
 async function fetchDiscovery(issuer: string): Promise<OidcEndpoints> {
-	const res = await fetch(`${issuer}/.well-known/openid-configuration`, UPSTREAM_FETCH_INIT);
+	const res = await fetch(
+		`${issuer}/.well-known/openid-configuration`,
+		UPSTREAM_FETCH_INIT,
+	);
 	if (!res.ok) {
 		throw new Error(`OIDC discovery request failed (${res.status})`);
 	}
 	const parsed = discoverySchema.safeParse(await res.json());
 	if (!parsed.success) {
-		const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
+		const issues = parsed.error.issues.map(
+			(i) => `${i.path.join(".")}: ${i.message}`,
+		);
 		throw new Error(`Invalid OIDC discovery document: ${issues.join("; ")}`);
 	}
 	// OIDC Discovery §4.3: the document's issuer must match the one it was
 	// fetched from, otherwise a misconfigured or hostile host could hand us
 	// endpoints for a different identity provider.
 	if (stripTrailingSlash(parsed.data.issuer) !== issuer) {
-		throw new Error("OIDC discovery document issuer does not match OIDC_ISSUER_URL");
+		throw new Error(
+			"OIDC discovery document issuer does not match OIDC_ISSUER_URL",
+		);
 	}
 	return {
 		authorizeUrl: parsed.data.authorization_endpoint,
@@ -47,7 +57,9 @@ async function fetchDiscovery(issuer: string): Promise<OidcEndpoints> {
 	};
 }
 
-export function discoverOidcEndpoints(issuerUrl: string): Promise<OidcEndpoints> {
+export function discoverOidcEndpoints(
+	issuerUrl: string,
+): Promise<OidcEndpoints> {
 	if (!httpsUrl.safeParse(issuerUrl).success) {
 		return Promise.reject(new Error("OIDC_ISSUER_URL must be an https URL"));
 	}

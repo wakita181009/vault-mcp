@@ -1,6 +1,11 @@
 import { AwsClient } from "aws4fetch";
 import { scanSearch } from "../scan-search";
-import { type ContentMatch, type FileEntry, VaultError, type VaultStorage } from "../types";
+import {
+	type ContentMatch,
+	type FileEntry,
+	VaultError,
+	type VaultStorage,
+} from "../types";
 import type { S3StorageEnvConfig } from "./schema";
 import { parseErrorCode, parseListPage } from "./xml";
 
@@ -59,14 +64,21 @@ export class S3Storage implements VaultStorage {
 		const files: FileEntry[] = [];
 		let token: string | undefined;
 		for (let page = 0; page < MAX_LIST_PAGES; page++) {
-			const params = new URLSearchParams({ "list-type": "2", "encoding-type": "url" });
+			const params = new URLSearchParams({
+				"list-type": "2",
+				"encoding-type": "url",
+			});
 			if (token) params.set("continuation-token", token);
 			const res = await this.send("ListObjectsV2", `${this.listUrl}?${params}`);
 			const { objects, truncated, nextToken } = parseListPage(await res.text());
 			for (const obj of objects) {
 				// Some S3 clients create zero-byte "folder" markers ending in `/`.
 				if (obj.key.endsWith("/")) continue;
-				files.push({ path: obj.key, size: obj.size, ...(obj.lastModified ? { modifiedAt: obj.lastModified } : {}) });
+				files.push({
+					path: obj.key,
+					size: obj.size,
+					...(obj.lastModified ? { modifiedAt: obj.lastModified } : {}),
+				});
 			}
 			if (!truncated || !nextToken) return { files, truncated: false };
 			token = nextToken;
@@ -80,7 +92,10 @@ export class S3Storage implements VaultStorage {
 		return text;
 	}
 
-	async writeFile(path: string, content: string): Promise<{ created: boolean }> {
+	async writeFile(
+		path: string,
+		content: string,
+	): Promise<{ created: boolean }> {
 		const existing = await this.head(path);
 		// PUT replaces user metadata wholesale; carry over whatever a sync plugin
 		// stored on the object so an overwrite does not erase it.
@@ -88,7 +103,11 @@ export class S3Storage implements VaultStorage {
 		for (const [name, value] of existing ?? []) {
 			if (name.startsWith(USER_METADATA_PREFIX)) headers.set(name, value);
 		}
-		await this.send("PutObject", this.objectUrl(path), { method: "PUT", headers, body: content });
+		await this.send("PutObject", this.objectUrl(path), {
+			method: "PUT",
+			headers,
+			body: content,
+		});
 		return { created: existing === null };
 	}
 
@@ -112,7 +131,12 @@ export class S3Storage implements VaultStorage {
 	}
 
 	private async getText(path: string): Promise<string | null> {
-		const res = await this.send("GetObject", this.objectUrl(path), {}, { allowNotFound: true });
+		const res = await this.send(
+			"GetObject",
+			this.objectUrl(path),
+			{},
+			{ allowNotFound: true },
+		);
 		if (res.status !== 404) return res.text();
 		// A mistyped bucket is also a 404 (`NoSuchBucket`); only a missing key is a
 		// missing note. HEAD has no body to tell them apart, so this is GET-only.
@@ -146,8 +170,11 @@ export class S3Storage implements VaultStorage {
 		const res = await this.client.fetch(url, init);
 		if (res.ok || (allowNotFound && res.status === 404)) return res;
 		// HEAD carries no body, so the status alone has to do there.
-		const code = init.method === "HEAD" ? undefined : parseErrorCode(await res.text());
-		throw new Error(`S3 ${operation} failed: ${res.status}${code ? ` ${code}` : ""}`);
+		const code =
+			init.method === "HEAD" ? undefined : parseErrorCode(await res.text());
+		throw new Error(
+			`S3 ${operation} failed: ${res.status}${code ? ` ${code}` : ""}`,
+		);
 	}
 }
 

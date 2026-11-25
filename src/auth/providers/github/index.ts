@@ -17,7 +17,9 @@ export const githubProvider: UpstreamProvider = {
 	}),
 	allowedLogins: (env) => parseList(env.VAULT_ALLOWED_GITHUB_LOGINS),
 	fetchIdentity: async (accessToken) => {
-		const user = await new Octokit({ auth: accessToken }).rest.users.getAuthenticated();
+		const user = await new Octokit({
+			auth: accessToken,
+		}).rest.users.getAuthenticated();
 		const { login, name, email } = user.data;
 		return { login, name: name ?? login, email: email ?? "" };
 	},

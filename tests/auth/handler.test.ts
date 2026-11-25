@@ -80,13 +80,17 @@ beforeEach(() => {
 			clientName: "Claude",
 			redirectUris: ["https://claude.ai/cb"],
 		})),
-		completeAuthorization: vi.fn(async () => ({ redirectTo: "https://claude.ai/cb?code=granted" })),
+		completeAuthorization: vi.fn(async () => ({
+			redirectTo: "https://claude.ai/cb?code=granted",
+		})),
 	};
 });
 
 describe("GET /authorize", () => {
 	it("400s when the request carries no client id", async () => {
-		oauthProvider.parseAuthRequest = vi.fn(async () => ({ clientId: undefined }));
+		oauthProvider.parseAuthRequest = vi.fn(async () => ({
+			clientId: undefined,
+		}));
 		const res = await request("https://mcp.example/authorize");
 		expect(res.status).toBe(400);
 	});
@@ -108,7 +112,9 @@ describe("GET /authorize", () => {
 			headers: { Cookie: approvedCookie.split(";")[0] },
 		});
 		expect(res.status).toBe(302);
-		expect(res.headers.get("Location")).toContain("github.com/login/oauth/authorize");
+		expect(res.headers.get("Location")).toContain(
+			"github.com/login/oauth/authorize",
+		);
 		expect(kv.put).toHaveBeenCalled();
 	});
 });
@@ -168,7 +174,10 @@ describe("POST /authorize", () => {
 		const failure = new Error("kv down");
 		kv.put.mockRejectedValueOnce(failure);
 		const { token, setCookie } = generateCSRFProtection();
-		const res = await postForm({ csrf_token: token, state: validState() }, setCookie.split(";")[0]);
+		const res = await postForm(
+			{ csrf_token: token, state: validState() },
+			setCookie.split(";")[0],
+		);
 		expect(res.status).toBe(500);
 		expect(await res.text()).toBe("Internal server error");
 		expect(logged).toHaveBeenCalledWith(expect.any(String), failure);
@@ -185,20 +194,23 @@ describe("GET /callback", () => {
 	const seedState = async () => {
 		const stateToken = await createOAuthState(reqInfo as never, kv as never);
 		const setCookie = await bindStateToSession(stateToken);
-		return { stateToken, consented: setCookie.split(";")[0].split("=").slice(1).join("=") };
+		return {
+			stateToken,
+			consented: setCookie.split(";")[0].split("=").slice(1).join("="),
+		};
 	};
 
 	const callback = async (params: string, consented: string | null) =>
 		request(`https://mcp.example/callback?${params}`, {
-			headers: consented ? { Cookie: `__Host-CONSENTED_STATE=${consented}` } : {},
+			headers: consented
+				? { Cookie: `__Host-CONSENTED_STATE=${consented}` }
+				: {},
 		});
 
 	it("completes authorization and redirects on a valid callback", async () => {
 		vi.stubGlobal(
 			"fetch",
-			vi.fn(async () =>
-				Response.json({ access_token: "gho_token" }),
-			),
+			vi.fn(async () => Response.json({ access_token: "gho_token" })),
 		);
 		octo.getAuthenticated.mockResolvedValue({
 			data: { login: "alice", name: "Alice", email: "alice@example.com" },
@@ -206,7 +218,9 @@ describe("GET /callback", () => {
 		const { stateToken, consented } = await seedState();
 		const res = await callback(`state=${stateToken}&code=the-code`, consented);
 		expect(res.status).toBe(302);
-		expect(res.headers.get("Location")).toBe("https://claude.ai/cb?code=granted");
+		expect(res.headers.get("Location")).toBe(
+			"https://claude.ai/cb?code=granted",
+		);
 		expect(oauthProvider.completeAuthorization).toHaveBeenCalledWith(
 			expect.objectContaining({
 				props: { email: "alice@example.com", login: "alice", name: "Alice" },
@@ -229,7 +243,10 @@ describe("GET /callback", () => {
 	});
 
 	it("400s when the stored request has no client id", async () => {
-		const stateToken = await createOAuthState({ ...reqInfo, clientId: undefined } as never, kv as never);
+		const stateToken = await createOAuthState(
+			{ ...reqInfo, clientId: undefined } as never,
+			kv as never,
+		);
 		const setCookie = await bindStateToSession(stateToken);
 		const consented = setCookie.split(";")[0].split("=").slice(1).join("=");
 		const res = await callback(`state=${stateToken}&code=the-code`, consented);
@@ -238,20 +255,30 @@ describe("GET /callback", () => {
 	});
 
 	it("clears the consent cookie on the final redirect", async () => {
-		vi.stubGlobal("fetch", vi.fn(async () => Response.json({ access_token: "gho_token" })));
-		octo.getAuthenticated.mockResolvedValue({ data: { login: "alice", name: null, email: null } });
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => Response.json({ access_token: "gho_token" })),
+		);
+		octo.getAuthenticated.mockResolvedValue({
+			data: { login: "alice", name: null, email: null },
+		});
 		const { stateToken, consented } = await seedState();
 		const res = await callback(`state=${stateToken}&code=the-code`, consented);
 		expect(res.headers.get("Set-Cookie")).toContain("Max-Age=0");
 		expect(oauthProvider.completeAuthorization).toHaveBeenCalledWith(
-			expect.objectContaining({ props: expect.objectContaining({ name: "alice", email: "" }) }),
+			expect.objectContaining({
+				props: expect.objectContaining({ name: "alice", email: "" }),
+			}),
 		);
 		vi.unstubAllGlobals();
 	});
 
 	it("propagates unexpected identity lookup failures as a 500", async () => {
 		vi.spyOn(console, "error").mockImplementation(() => {});
-		vi.stubGlobal("fetch", vi.fn(async () => Response.json({ access_token: "gho_token" })));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => Response.json({ access_token: "gho_token" })),
+		);
 		octo.getAuthenticated.mockRejectedValue(new Error("github down"));
 		const { stateToken, consented } = await seedState();
 		const res = await callback(`state=${stateToken}&code=the-code`, consented);
@@ -261,8 +288,13 @@ describe("GET /callback", () => {
 	});
 
 	it("403s an identity outside the allowlist without issuing a grant", async () => {
-		vi.stubGlobal("fetch", vi.fn(async () => Response.json({ access_token: "gho_token" })));
-		octo.getAuthenticated.mockResolvedValue({ data: { login: "mallory", name: null, email: null } });
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => Response.json({ access_token: "gho_token" })),
+		);
+		octo.getAuthenticated.mockResolvedValue({
+			data: { login: "mallory", name: null, email: null },
+		});
 		const { stateToken, consented } = await seedState();
 		const res = await callback(`state=${stateToken}&code=the-code`, consented);
 		expect(res.status).toBe(403);
@@ -280,7 +312,10 @@ describe("GET /callback", () => {
 
 	it("500s when the upstream token exchange fails", async () => {
 		vi.spyOn(console, "error").mockImplementation(() => {});
-		vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", { status: 401 })));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => new Response("nope", { status: 401 })),
+		);
 		const { stateToken, consented } = await seedState();
 		const res = await callback(`state=${stateToken}&code=the-code`, consented);
 		expect(res.status).toBe(500);
@@ -303,7 +338,10 @@ describe("GET /callback with the Google provider", () => {
 	const seedState = async () => {
 		const stateToken = await createOAuthState(reqInfo as never, kv as never);
 		const setCookie = await bindStateToSession(stateToken);
-		return { stateToken, consented: setCookie.split(";")[0].split("=").slice(1).join("=") };
+		return {
+			stateToken,
+			consented: setCookie.split(";")[0].split("=").slice(1).join("="),
+		};
 	};
 
 	const callback = async (userinfo: Record<string, unknown>) => {
@@ -336,7 +374,9 @@ describe("GET /callback with the Google provider", () => {
 		);
 		expect(res.status).toBe(302);
 		const location = new URL(res.headers.get("Location") ?? "");
-		expect(location.origin + location.pathname).toBe("https://accounts.google.com/o/oauth2/v2/auth");
+		expect(location.origin + location.pathname).toBe(
+			"https://accounts.google.com/o/oauth2/v2/auth",
+		);
 		expect(location.searchParams.get("client_id")).toBe("gcid");
 		expect(location.searchParams.get("scope")).toBe("openid email profile");
 	});
@@ -348,23 +388,34 @@ describe("GET /callback with the Google provider", () => {
 			name: "Alice",
 		});
 		expect(res.status).toBe(302);
-		expect(fetchMock.mock.calls[0][0]).toBe("https://oauth2.googleapis.com/token");
+		expect(fetchMock.mock.calls[0][0]).toBe(
+			"https://oauth2.googleapis.com/token",
+		);
 		expect(oauthProvider.completeAuthorization).toHaveBeenCalledWith(
 			expect.objectContaining({
 				userId: "alice@example.com",
-				props: expect.objectContaining({ login: "alice@example.com", email: "alice@example.com" }),
+				props: expect.objectContaining({
+					login: "alice@example.com",
+					email: "alice@example.com",
+				}),
 			}),
 		);
 	});
 
 	it("403s a verified Google email outside the allowlist", async () => {
-		const { res } = await callback({ email: "bob@example.com", email_verified: true });
+		const { res } = await callback({
+			email: "bob@example.com",
+			email_verified: true,
+		});
 		expect(res.status).toBe(403);
 		expect(oauthProvider.completeAuthorization).not.toHaveBeenCalled();
 	});
 
 	it("403s when the Google email is not verified", async () => {
-		const { res } = await callback({ email: "alice@example.com", email_verified: false });
+		const { res } = await callback({
+			email: "alice@example.com",
+			email_verified: false,
+		});
 		expect(res.status).toBe(403);
 		expect(await res.text()).toContain("not verified");
 		expect(oauthProvider.completeAuthorization).not.toHaveBeenCalled();
@@ -404,7 +455,11 @@ describe("the generic OIDC provider", () => {
 	};
 
 	const approvedRequest = async (env: Record<string, unknown>) => {
-		const approvedCookie = await addApprovedClient(new Request("https://mcp.example/"), "c1", SECRET);
+		const approvedCookie = await addApprovedClient(
+			new Request("https://mcp.example/"),
+			"c1",
+			SECRET,
+		);
 		return OidcHandler.request(
 			"https://mcp.example/authorize",
 			{ headers: { Cookie: approvedCookie.split(";")[0] } },
@@ -413,7 +468,11 @@ describe("the generic OIDC provider", () => {
 	};
 
 	it("names the configured provider on the approval dialog", async () => {
-		const res = await OidcHandler.request("https://mcp.example/authorize", undefined, oidcEnv() as never);
+		const res = await OidcHandler.request(
+			"https://mcp.example/authorize",
+			undefined,
+			oidcEnv() as never,
+		);
 		expect(res.status).toBe(200);
 		expect(await res.text()).toContain("Sign in with Acme SSO");
 	});
@@ -439,7 +498,9 @@ describe("the generic OIDC provider", () => {
 
 	it("502s on the authorize redirect when discovery fails, without creating state", async () => {
 		stubIdpDown();
-		const res = await approvedRequest(oidcEnv("https://idp.example/handler-down"));
+		const res = await approvedRequest(
+			oidcEnv("https://idp.example/handler-down"),
+		);
 		vi.unstubAllGlobals();
 		vi.restoreAllMocks();
 		expect(res.status).toBe(502);
@@ -482,7 +543,11 @@ describe("the generic OIDC provider", () => {
 	});
 
 	it("completes the callback through the discovered token and userinfo endpoints", async () => {
-		const fetchMock = stubIdp({ email: "Alice@Example.com", email_verified: true, name: "Alice" });
+		const fetchMock = stubIdp({
+			email: "Alice@Example.com",
+			email_verified: true,
+			name: "Alice",
+		});
 		const stateToken = await createOAuthState(reqInfo as never, kv as never);
 		const setCookie = await bindStateToSession(stateToken);
 		const consented = setCookie.split(";")[0].split("=").slice(1).join("=");

@@ -10,7 +10,10 @@ export const oidcAuthSchema = z.object({
 		.string()
 		.url()
 		.startsWith("https://", "must be an https URL")
-		.refine((url) => !/[?#]/.test(url), "must not contain a query string or fragment"),
+		.refine(
+			(url) => !/[?#]/.test(url),
+			"must not contain a query string or fragment",
+		),
 	OIDC_CLIENT_ID: z.string().min(1),
 	OIDC_CLIENT_SECRET: z.string().min(1),
 	// Optional knobs; their defaults live next to the provider in `./index.ts`

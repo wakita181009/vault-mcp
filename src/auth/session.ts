@@ -9,7 +9,11 @@ const FLOW_TTL_SECONDS = 600;
 const APPROVAL_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 /** `__Host-` cookies must be Secure, Path=/, and domain-less, so every cookie here shares these attributes. */
-function hostCookie(name: string, value: string, maxAgeSeconds: number): string {
+function hostCookie(
+	name: string,
+	value: string,
+	maxAgeSeconds: number,
+): string {
 	return `${name}=${value}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${maxAgeSeconds}`;
 }
 
@@ -51,7 +55,10 @@ export interface CSRFProtectionResult {
 
 export function generateCSRFProtection(): CSRFProtectionResult {
 	const token = crypto.randomUUID();
-	return { token, setCookie: hostCookie(CSRF_TOKEN_COOKIE, token, FLOW_TTL_SECONDS) };
+	return {
+		token,
+		setCookie: hostCookie(CSRF_TOKEN_COOKIE, token, FLOW_TTL_SECONDS),
+	};
 }
 
 /**
@@ -62,7 +69,11 @@ export function generateCSRFProtection(): CSRFProtectionResult {
 export function validateCSRFToken(formData: FormData, request: Request): void {
 	const tokenFromForm = formData.get("csrf_token");
 	if (!tokenFromForm || typeof tokenFromForm !== "string") {
-		throw new OAuthError("invalid_request", "Missing CSRF token in form data", 400);
+		throw new OAuthError(
+			"invalid_request",
+			"Missing CSRF token in form data",
+			400,
+		);
 	}
 
 	const tokenFromCookie = getCookie(request, CSRF_TOKEN_COOKIE);
@@ -81,7 +92,9 @@ export async function createOAuthState(
 	stateTTL = FLOW_TTL_SECONDS,
 ): Promise<string> {
 	const stateToken = crypto.randomUUID();
-	await kv.put(stateKey(stateToken), JSON.stringify(oauthReqInfo), { expirationTtl: stateTTL });
+	await kv.put(stateKey(stateToken), JSON.stringify(oauthReqInfo), {
+		expirationTtl: stateTTL,
+	});
 	return stateToken;
 }
 
@@ -93,7 +106,11 @@ export async function createOAuthState(
  * cannot be used to forge the cookie.
  */
 export async function bindStateToSession(stateToken: string): Promise<string> {
-	return hostCookie(CONSENTED_STATE_COOKIE, await sha256Hex(stateToken), FLOW_TTL_SECONDS);
+	return hostCookie(
+		CONSENTED_STATE_COOKIE,
+		await sha256Hex(stateToken),
+		FLOW_TTL_SECONDS,
+	);
 }
 
 /**
@@ -153,7 +170,10 @@ export async function isClientApproved(
 	clientId: string,
 	cookieSecret: string,
 ): Promise<boolean> {
-	const approvedClients = await getApprovedClientsFromCookie(request, cookieSecret);
+	const approvedClients = await getApprovedClientsFromCookie(
+		request,
+		cookieSecret,
+	);
 	return approvedClients?.includes(clientId) ?? false;
 }
 
@@ -164,7 +184,9 @@ export async function addApprovedClient(
 ): Promise<string> {
 	const existingApprovedClients =
 		(await getApprovedClientsFromCookie(request, cookieSecret)) || [];
-	const updatedApprovedClients = Array.from(new Set([...existingApprovedClients, clientId]));
+	const updatedApprovedClients = Array.from(
+		new Set([...existingApprovedClients, clientId]),
+	);
 
 	const payload = JSON.stringify(updatedApprovedClients);
 	const signature = await signData(payload, cookieSecret);
@@ -251,9 +273,16 @@ async function verifySignature(
 	const enc = new TextEncoder();
 	try {
 		const signatureBytes = new Uint8Array(
-			(signatureHex.match(/.{1,2}/g) ?? []).map((byte) => Number.parseInt(byte, 16)),
+			(signatureHex.match(/.{1,2}/g) ?? []).map((byte) =>
+				Number.parseInt(byte, 16),
+			),
 		);
-		return await crypto.subtle.verify("HMAC", key, signatureBytes.buffer, enc.encode(data));
+		return await crypto.subtle.verify(
+			"HMAC",
+			key,
+			signatureBytes.buffer,
+			enc.encode(data),
+		);
 	} catch (_e) {
 		return false;
 	}

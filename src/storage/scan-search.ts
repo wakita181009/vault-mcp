@@ -34,9 +34,15 @@ export async function scanSearch(
 		.map((file) => file.path);
 
 	const hits: ContentMatch[] = [];
-	for (let i = 0; i < paths.length && hits.length < limit; i += SEARCH_CONCURRENCY) {
+	for (
+		let i = 0;
+		i < paths.length && hits.length < limit;
+		i += SEARCH_CONCURRENCY
+	) {
 		const batch = paths.slice(i, i + SEARCH_CONCURRENCY);
-		const matches = await Promise.all(batch.map((path) => matchFile(path, pattern, read)));
+		const matches = await Promise.all(
+			batch.map((path) => matchFile(path, pattern, read)),
+		);
 		for (const match of matches) {
 			if (match && hits.length < limit) hits.push(match);
 		}
@@ -73,7 +79,10 @@ export function findFragments(text: string, pattern: RegExp): string[] {
 		if (fragments.length >= MAX_FRAGMENTS_PER_FILE) break;
 		if (match.index < from) continue;
 		const start = Math.max(0, match.index - FRAGMENT_CONTEXT);
-		const end = Math.min(text.length, match.index + match[0].length + FRAGMENT_CONTEXT);
+		const end = Math.min(
+			text.length,
+			match.index + match[0].length + FRAGMENT_CONTEXT,
+		);
 		fragments.push(text.slice(start, end));
 		from = end;
 	}

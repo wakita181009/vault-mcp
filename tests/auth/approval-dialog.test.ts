@@ -27,7 +27,9 @@ describe("sanitizeText", () => {
 describe("sanitizeUrl", () => {
 	it("accepts http and https URLs and trims surrounding whitespace", () => {
 		expect(sanitizeUrl("https://example.com")).toBe("https://example.com");
-		expect(sanitizeUrl("http://example.com/path")).toBe("http://example.com/path");
+		expect(sanitizeUrl("http://example.com/path")).toBe(
+			"http://example.com/path",
+		);
 		expect(sanitizeUrl("  https://example.com  ")).toBe("https://example.com");
 	});
 
@@ -63,7 +65,9 @@ describe("renderApprovalDialog", () => {
 	it("sets security headers and the CSRF cookie", () => {
 		const res = renderApprovalDialog(request, baseOptions);
 		expect(res.headers.get("Content-Type")).toContain("text/html");
-		expect(res.headers.get("Content-Security-Policy")).toBe("frame-ancestors 'none'");
+		expect(res.headers.get("Content-Security-Policy")).toBe(
+			"frame-ancestors 'none'",
+		);
 		expect(res.headers.get("X-Frame-Options")).toBe("DENY");
 		expect(res.headers.get("Set-Cookie")).toBe(baseOptions.setCookie);
 	});
@@ -71,7 +75,9 @@ describe("renderApprovalDialog", () => {
 	it("embeds the encoded state and CSRF token in the form", async () => {
 		const res = renderApprovalDialog(request, baseOptions);
 		const html = await res.text();
-		expect(html).toContain(`value="${btoa(JSON.stringify(baseOptions.state))}"`);
+		expect(html).toContain(
+			`value="${btoa(JSON.stringify(baseOptions.state))}"`,
+		);
 		expect(html).toContain('name="csrf_token" value="csrf-abc"');
 		expect(html).toContain('action="/authorize"');
 		expect(html).toContain("Unknown MCP Client");
@@ -109,7 +115,10 @@ describe("renderApprovalDialog", () => {
 	it("escapes a malicious client name", async () => {
 		const res = renderApprovalDialog(request, {
 			...baseOptions,
-			client: { clientId: "c1", clientName: "<script>alert(1)</script>" } as ApprovalDialogOptions["client"],
+			client: {
+				clientId: "c1",
+				clientName: "<script>alert(1)</script>",
+			} as ApprovalDialogOptions["client"],
 		});
 		const html = await res.text();
 		expect(html).not.toContain("<script>alert(1)</script>");

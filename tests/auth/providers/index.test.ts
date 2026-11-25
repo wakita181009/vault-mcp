@@ -10,7 +10,9 @@ describe("authProviderFromEnv", () => {
 	});
 
 	it("selects Google", () => {
-		expect(authProviderFromEnv({ AUTH_PROVIDER: "google" })).toBe(googleProvider);
+		expect(authProviderFromEnv({ AUTH_PROVIDER: "google" })).toBe(
+			googleProvider,
+		);
 	});
 
 	it("selects the generic OIDC provider", () => {
@@ -18,8 +20,8 @@ describe("authProviderFromEnv", () => {
 	});
 
 	it("throws on an unknown provider", () => {
-		expect(() => authProviderFromEnv({ AUTH_PROVIDER: "okta" } as never)).toThrow(
-			/AUTH_PROVIDER/,
-		);
+		expect(() =>
+			authProviderFromEnv({ AUTH_PROVIDER: "okta" } as never),
+		).toThrow(/AUTH_PROVIDER/);
 	});
 });

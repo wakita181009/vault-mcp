@@ -10,12 +10,18 @@ describe("githubProvider", () => {
 			GITHUB_CLIENT_SECRET: "secret",
 			VAULT_ALLOWED_GITHUB_LOGINS: "alice, bob",
 		});
-		expect(githubProvider.credentials(env)).toEqual({ clientId: "cid", clientSecret: "secret" });
+		expect(githubProvider.credentials(env)).toEqual({
+			clientId: "cid",
+			clientSecret: "secret",
+		});
 		expect(githubProvider.allowedLogins(env)).toEqual(["alice", "bob"]);
 	});
 
 	it("yields empty credentials when the GitHub OAuth app keys are unset", () => {
-		expect(githubProvider.credentials(asEnv({}))).toEqual({ clientId: "", clientSecret: "" });
+		expect(githubProvider.credentials(asEnv({}))).toEqual({
+			clientId: "",
+			clientSecret: "",
+		});
 	});
 
 	it("exposes its static endpoints", async () => {

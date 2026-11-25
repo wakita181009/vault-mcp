@@ -303,7 +303,7 @@ Endpoint: `https://vault-mcp.<subdomain>.workers.dev/mcp`
 
 ```bash
 pnpm typecheck     # verify generated Worker types, then run tsc --noEmit
-pnpm lint          # biome lint ./src
+pnpm lint          # biome check: lint + format check (pnpm lint:fix applies both)
 pnpm test          # vitest run
 pnpm cf-typegen    # regenerate worker-configuration.d.ts after editing wrangler.jsonc
 pnpm dev           # local Worker at :8788 (vite dev + @cloudflare/vite-plugin)
