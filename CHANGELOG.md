@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/wakita181009/vault-mcp/compare/v0.6.1...v0.6.2) (2026-11-25)
+
+
+### Bug Fixes
+
+* refuse non-allowlisted identities at the login callback ([#104](https://github.com/wakita181009/vault-mcp/issues/104)) ([c6691cb](https://github.com/wakita181009/vault-mcp/commit/c6691cbc5ee2b7fd0d9dcec39f4ccabc67576001))
+
 ## [0.6.1](https://github.com/wakita181009/vault-mcp/compare/v0.6.0...v0.6.1) (2026-11-24)
 
 
