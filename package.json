@@ -4,7 +4,7 @@
 	"type": "module",
 	"description": "Authenticated remote MCP server on Cloudflare Workers that exposes a private Obsidian vault (GitHub repo, Cloudflare R2, or any S3-compatible bucket) to claude.ai and Claude Code: read, create/overwrite, and delete notes, never rename or move.",
 	"license": "MIT",
-	"packageManager": "pnpm@11.14.0",
+	"packageManager": "pnpm@12.23.0",
 	"scripts": {
 		"build": "vite build",
 		"deploy": "vite build && wrangler deploy",
