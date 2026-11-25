@@ -56,7 +56,9 @@ describe("createGuardedApiHandler with the Google provider", () => {
 			VAULT_ALLOWED_OIDC_EMAILS: "Alice@Example.com",
 			VAULT_ALLOWED_GITHUB_LOGINS: "carol",
 		} as unknown as Env;
-		expect((await handler.fetch?.(request, oidcEnv, ctxWith("alice@example.com")))?.status).toBe(200);
+		expect((await handler.fetch?.(request, oidcEnv, ctxWith("alice@example.com")))?.status).toBe(
+			200,
+		);
 		expect((await handler.fetch?.(request, oidcEnv, ctxWith("carol")))?.status).toBe(403);
 	});
 

@@ -56,9 +56,7 @@ describe("parseEnv", () => {
 	});
 
 	it("labels a top-level (non-object) env as (root)", () => {
-		expect(() => parseEnv("nope" as unknown as Parameters<typeof parseEnv>[0])).toThrow(
-			/\(root\)/,
-		);
+		expect(() => parseEnv("nope" as unknown as Parameters<typeof parseEnv>[0])).toThrow(/\(root\)/);
 	});
 });
 
@@ -123,9 +121,7 @@ describe("parseEnv AUTH_PROVIDER", () => {
 	});
 
 	it("requires an https issuer URL", () => {
-		expect(() => parseOidc({ OIDC_ISSUER_URL: "http://login.example" })).toThrow(
-			/OIDC_ISSUER_URL/,
-		);
+		expect(() => parseOidc({ OIDC_ISSUER_URL: "http://login.example" })).toThrow(/OIDC_ISSUER_URL/);
 		expect(() => parseOidc({ OIDC_ISSUER_URL: "not a url" })).toThrow(/OIDC_ISSUER_URL/);
 		expect(() => parseOidc({ OIDC_ISSUER_URL: "https://login.example/?x=1" })).toThrow(
 			/query string/,
@@ -165,9 +161,9 @@ describe("parseEnv VAULT_STORAGE", () => {
 	});
 
 	it("still requires the GitHub vault keys when github storage is selected", () => {
-		expect(() =>
-			parseEnv(AUTH_ONLY as unknown as Parameters<typeof parseEnv>[0]),
-		).toThrow(/VAULT_GITHUB_TOKEN/);
+		expect(() => parseEnv(AUTH_ONLY as unknown as Parameters<typeof parseEnv>[0])).toThrow(
+			/VAULT_GITHUB_TOKEN/,
+		);
 	});
 
 	it("rejects an unknown backend", () => {
@@ -182,7 +178,8 @@ describe("parseEnv VAULT_STORAGE", () => {
 			VAULT_S3_ACCESS_KEY_ID: "AKIAEXAMPLE",
 			VAULT_S3_SECRET_ACCESS_KEY: "secret",
 		};
-		const parseS3 = (overrides: Record<string, string> = {}) => parseR2({ ...S3_KEYS, ...overrides });
+		const parseS3 = (overrides: Record<string, string> = {}) =>
+			parseR2({ ...S3_KEYS, ...overrides });
 		const scanOf = (config: VaultEnvConfig) =>
 			config.VAULT_STORAGE === "s3" ? config.VAULT_S3_SEARCH_SCAN : undefined;
 
@@ -200,9 +197,13 @@ describe("parseEnv VAULT_STORAGE", () => {
 		});
 
 		it("requires https for the endpoint except on localhost", () => {
-			expect(() => parseS3({ VAULT_S3_ENDPOINT: "https://s3.us-west-004.backblazeb2.com" })).not.toThrow();
+			expect(() =>
+				parseS3({ VAULT_S3_ENDPOINT: "https://s3.us-west-004.backblazeb2.com" }),
+			).not.toThrow();
 			expect(() => parseS3({ VAULT_S3_ENDPOINT: "http://localhost:9000" })).not.toThrow();
-			expect(() => parseS3({ VAULT_S3_ENDPOINT: "http://minio.example.com" })).toThrow(/VAULT_S3_ENDPOINT/);
+			expect(() => parseS3({ VAULT_S3_ENDPOINT: "http://minio.example.com" })).toThrow(
+				/VAULT_S3_ENDPOINT/,
+			);
 			expect(() => parseS3({ VAULT_S3_ENDPOINT: "https://s3.example.com/?x=1" })).toThrow(
 				/VAULT_S3_ENDPOINT/,
 			);
@@ -211,9 +212,9 @@ describe("parseEnv VAULT_STORAGE", () => {
 		});
 
 		it("requires the bucket, region, and keys", () => {
-			expect(() =>
-				parseR2({ VAULT_STORAGE: "s3" }),
-			).toThrow(/VAULT_S3_BUCKET[\s\S]*VAULT_S3_REGION[\s\S]*VAULT_S3_ACCESS_KEY_ID[\s\S]*VAULT_S3_SECRET_ACCESS_KEY/);
+			expect(() => parseR2({ VAULT_STORAGE: "s3" })).toThrow(
+				/VAULT_S3_BUCKET[\s\S]*VAULT_S3_REGION[\s\S]*VAULT_S3_ACCESS_KEY_ID[\s\S]*VAULT_S3_SECRET_ACCESS_KEY/,
+			);
 		});
 	});
 

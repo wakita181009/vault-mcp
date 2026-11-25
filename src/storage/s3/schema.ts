@@ -23,7 +23,8 @@ export const s3StorageSchema = z.object({
 			const url = URL.parse(raw);
 			return (
 				url !== null &&
-				(url.protocol === "https:" || (url.protocol === "http:" && LOOPBACK_HOSTS.has(url.hostname)))
+				(url.protocol === "https:" ||
+					(url.protocol === "http:" && LOOPBACK_HOSTS.has(url.hostname)))
 			);
 		}, "must be an https URL (http only for localhost)")
 		.refine((raw) => !/[?#]/.test(raw), "must not contain a query string or fragment")

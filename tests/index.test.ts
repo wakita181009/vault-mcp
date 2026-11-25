@@ -83,7 +83,10 @@ describe("createVaultServer", () => {
 			expect(configs.get(name)?.annotations).toEqual({ readOnlyHint: true, openWorldHint: false });
 		}
 		for (const name of ["write_note", "delete_note"]) {
-			expect(configs.get(name)?.annotations).toEqual({ idempotentHint: true, openWorldHint: false });
+			expect(configs.get(name)?.annotations).toEqual({
+				idempotentHint: true,
+				openWorldHint: false,
+			});
 		}
 		expect([...configs.values()].every((config) => config.title)).toBe(true);
 	});

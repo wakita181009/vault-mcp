@@ -109,7 +109,10 @@ describe("renderApprovalDialog", () => {
 	it("escapes a malicious client name", async () => {
 		const res = renderApprovalDialog(request, {
 			...baseOptions,
-			client: { clientId: "c1", clientName: "<script>alert(1)</script>" } as ApprovalDialogOptions["client"],
+			client: {
+				clientId: "c1",
+				clientName: "<script>alert(1)</script>",
+			} as ApprovalDialogOptions["client"],
 		});
 		const html = await res.text();
 		expect(html).not.toContain("<script>alert(1)</script>");

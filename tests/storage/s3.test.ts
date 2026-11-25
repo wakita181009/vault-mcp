@@ -21,13 +21,18 @@ type Stored = { body: string; modified: Date; headers: Record<string, string> };
  */
 function fakeS3(initial: Record<string, string> = {}, { pageSize = 1000, urlEncoded = true } = {}) {
 	const objects = new Map<string, Stored>(
-		Object.entries(initial).map(([key, body], i) => [key, { body, modified: new Date(i * 1000), headers: {} }]),
+		Object.entries(initial).map(([key, body], i) => [
+			key,
+			{ body, modified: new Date(i * 1000), headers: {} },
+		]),
 	);
 	const requests: Request[] = [];
 	const failures = new Map<string, Response>();
 
 	const encodeKey = (key: string) =>
-		urlEncoded ? encodeURIComponent(key).replace(/%20/g, "+") : key.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+		urlEncoded
+			? encodeURIComponent(key).replace(/%20/g, "+")
+			: key.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 
 	const list = (url: URL) => {
 		const keys = [...objects.keys()].sort();
@@ -58,11 +63,17 @@ function fakeS3(initial: Record<string, string> = {}, { pageSize = 1000, urlEnco
 		const obj = objects.get(key);
 		switch (req.method) {
 			case "GET":
-				return obj ? new Response(obj.body) : new Response("<Error><Code>NoSuchKey</Code></Error>", { status: 404 });
+				return obj
+					? new Response(obj.body)
+					: new Response("<Error><Code>NoSuchKey</Code></Error>", { status: 404 });
 			case "HEAD":
-				return obj ? new Response(null, { headers: obj.headers }) : new Response(null, { status: 404 });
+				return obj
+					? new Response(null, { headers: obj.headers })
+					: new Response(null, { status: 404 });
 			case "PUT": {
-				const headers = Object.fromEntries([...req.headers].filter(([name]) => name.startsWith("x-amz-meta-")));
+				const headers = Object.fromEntries(
+					[...req.headers].filter(([name]) => name.startsWith("x-amz-meta-")),
+				);
 				objects.set(key, { body: await req.text(), modified: new Date(), headers });
 				return new Response(null, { status: 200 });
 			}
@@ -91,7 +102,9 @@ describe("S3Storage requests", () => {
 		install(fakeS3({ "a.md": "x" }));
 		await storage().readFile("a.md");
 		const auth = s3.requests[0]?.headers.get("authorization") ?? "";
-		expect(auth).toMatch(/^AWS4-HMAC-SHA256 Credential=AKIAEXAMPLE\/\d{8}\/us-east-1\/s3\/aws4_request/);
+		expect(auth).toMatch(
+			/^AWS4-HMAC-SHA256 Credential=AKIAEXAMPLE\/\d{8}\/us-east-1\/s3\/aws4_request/,
+		);
 	});
 
 	it("uses path-style URLs on a custom endpoint, percent-encoding each key segment", async () => {
@@ -112,8 +125,13 @@ describe("S3Storage requests", () => {
 	});
 
 	it("does not retry a failed request (each retry would spend a subrequest)", async () => {
-		s3.failures.set("GET /vault/a.md", new Response("<Error><Code>InternalError</Code></Error>", { status: 500 }));
-		await expect(storage().readFile("a.md")).rejects.toThrow("S3 GetObject failed: 500 InternalError");
+		s3.failures.set(
+			"GET /vault/a.md",
+			new Response("<Error><Code>InternalError</Code></Error>", { status: 500 }),
+		);
+		await expect(storage().readFile("a.md")).rejects.toThrow(
+			"S3 GetObject failed: 500 InternalError",
+		);
 		expect(s3.fetchMock).toHaveBeenCalledTimes(1);
 	});
 
@@ -129,7 +147,10 @@ describe("S3Storage.listFiles", () => {
 		const { files, truncated } = await storage().listFiles();
 		expect(truncated).toBe(false);
 		expect(files.map((f) => f.path).sort()).toEqual(["a b.md", "c+d%.md", "dir/日本.md"]);
-		expect(files.find((f) => f.path === "a b.md")).toMatchObject({ size: 3, modifiedAt: new Date(0) });
+		expect(files.find((f) => f.path === "a b.md")).toMatchObject({
+			size: 3,
+			modifiedAt: new Date(0),
+		});
 		expect(s3.requests[0]?.url).toContain("encoding-type=url");
 	});
 
@@ -159,8 +180,13 @@ describe("S3Storage.listFiles", () => {
 	});
 
 	it("surfaces a listing error with its S3 code", async () => {
-		s3.failures.set("GET /vault", new Response("<Error><Code>AccessDenied</Code></Error>", { status: 403 }));
-		await expect(storage().listFiles()).rejects.toThrow("S3 ListObjectsV2 failed: 403 AccessDenied");
+		s3.failures.set(
+			"GET /vault",
+			new Response("<Error><Code>AccessDenied</Code></Error>", { status: 403 }),
+		);
+		await expect(storage().listFiles()).rejects.toThrow(
+			"S3 ListObjectsV2 failed: 403 AccessDenied",
+		);
 	});
 });
 
@@ -184,7 +210,9 @@ describe("S3Storage.readFile", () => {
 			"GET /vault/a.md",
 			new Response("<Error><Code>NoSuchBucket</Code></Error>", { status: 404 }),
 		);
-		await expect(storage().readFile("a.md")).rejects.toThrow("S3 GetObject failed: 404 NoSuchBucket");
+		await expect(storage().readFile("a.md")).rejects.toThrow(
+			"S3 GetObject failed: 404 NoSuchBucket",
+		);
 	});
 });
 
@@ -198,9 +226,15 @@ describe("S3Storage.writeFile", () => {
 
 	it("overwrites an existing note, keeping its user metadata", async () => {
 		install(fakeS3({ "a.md": "old" }));
-		(s3.objects.get("a.md") as Stored).headers = { "x-amz-meta-mtime": "123", "content-language": "en" };
+		(s3.objects.get("a.md") as Stored).headers = {
+			"x-amz-meta-mtime": "123",
+			"content-language": "en",
+		};
 		expect(await storage().writeFile("a.md", "new")).toEqual({ created: false });
-		expect(s3.objects.get("a.md")).toMatchObject({ body: "new", headers: { "x-amz-meta-mtime": "123" } });
+		expect(s3.objects.get("a.md")).toMatchObject({
+			body: "new",
+			headers: { "x-amz-meta-mtime": "123" },
+		});
 		const put = s3.requests.find((r) => r.method === "PUT");
 		expect(put?.headers.has("content-language")).toBe(false);
 	});
@@ -233,8 +267,12 @@ describe("S3Storage.searchContent", () => {
 	it("reads at most maxSearchScan notes, newest first", async () => {
 		install(fakeS3({ "old.md": "needle", "new.md": "needle" }));
 		const s = storage({ maxSearchScan: 1 });
-		expect((await s.searchContent("needle", 10, allFiles(s))).map((h) => h.path)).toEqual(["new.md"]);
-		expect(s3.requests.filter((r) => r.method === "GET" && !r.url.includes("list-type"))).toHaveLength(1);
+		expect((await s.searchContent("needle", 10, allFiles(s))).map((h) => h.path)).toEqual([
+			"new.md",
+		]);
+		expect(
+			s3.requests.filter((r) => r.method === "GET" && !r.url.includes("list-type")),
+		).toHaveLength(1);
 	});
 
 	it("skips a note deleted between listing and reading", async () => {
@@ -249,7 +287,10 @@ describe("S3Storage.searchContent", () => {
 describe("S3Storage behind the VaultClient policy", () => {
 	it("never lets a `.` segment smuggle a denied path past the prefix check", async () => {
 		install(fakeS3({ ".obsidian/x.md": "hidden" }));
-		const client = new VaultClient(storage(), { allowedPrefixes: [], deniedPrefixes: [".obsidian/"] });
+		const client = new VaultClient(storage(), {
+			allowedPrefixes: [],
+			deniedPrefixes: [".obsidian/"],
+		});
 		await expect(client.readNote("./.obsidian/x.md")).rejects.toThrow(/Invalid path/);
 		await expect(client.writeNote("./.obsidian/x.md", "pwn")).rejects.toThrow(/Invalid path/);
 		await expect(client.deleteNote("./.obsidian/x.md")).rejects.toThrow(/Invalid path/);

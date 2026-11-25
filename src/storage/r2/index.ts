@@ -25,7 +25,11 @@ export class R2Storage implements VaultStorage {
 
 	async listFiles(): Promise<{ files: FileEntry[]; truncated: boolean }> {
 		const { objects, truncated } = await this.listObjects();
-		const files = objects.map((obj) => ({ path: obj.key, size: obj.size, modifiedAt: obj.uploaded }));
+		const files = objects.map((obj) => ({
+			path: obj.key,
+			size: obj.size,
+			modifiedAt: obj.uploaded,
+		}));
 		return { files, truncated };
 	}
 

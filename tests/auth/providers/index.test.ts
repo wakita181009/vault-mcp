@@ -18,8 +18,6 @@ describe("authProviderFromEnv", () => {
 	});
 
 	it("throws on an unknown provider", () => {
-		expect(() => authProviderFromEnv({ AUTH_PROVIDER: "okta" } as never)).toThrow(
-			/AUTH_PROVIDER/,
-		);
+		expect(() => authProviderFromEnv({ AUTH_PROVIDER: "okta" } as never)).toThrow(/AUTH_PROVIDER/);
 	});
 });

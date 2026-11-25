@@ -66,7 +66,11 @@ describe("oidcProvider", () => {
 	it("fetches the identity from the discovered userinfo endpoint", async () => {
 		const fetchMock = stubIdp({ email: "Alice@Example.com", email_verified: true, name: "Alice" });
 		const identity = await oidcProvider.fetchIdentity("tok", asEnv(baseEnv));
-		expect(identity).toEqual({ login: "alice@example.com", email: "alice@example.com", name: "Alice" });
+		expect(identity).toEqual({
+			login: "alice@example.com",
+			email: "alice@example.com",
+			name: "Alice",
+		});
 		const userinfoCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/userinfo"));
 		expect(userinfoCall).toBeDefined();
 		const init = userinfoCall?.[1] as RequestInit;
@@ -76,9 +80,7 @@ describe("oidcProvider", () => {
 
 	it("rejects an email with no verified flag by default", async () => {
 		stubIdp({ email: "alice@example.com" });
-		await expect(oidcProvider.fetchIdentity("tok", asEnv(baseEnv))).rejects.toThrow(
-			/not verified/,
-		);
+		await expect(oidcProvider.fetchIdentity("tok", asEnv(baseEnv))).rejects.toThrow(/not verified/);
 	});
 
 	it("accepts an email with no verified flag when the opt-in is set", async () => {

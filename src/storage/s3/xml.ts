@@ -23,7 +23,10 @@ const XML_ENTITIES: Record<string, string> = {
 function decodeXml(text: string): string {
 	return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (entity, body: string) => {
 		if (body[0] === "#") {
-			const code = body[1] === "x" || body[1] === "X" ? Number.parseInt(body.slice(2), 16) : Number(body.slice(1));
+			const code =
+				body[1] === "x" || body[1] === "X"
+					? Number.parseInt(body.slice(2), 16)
+					: Number(body.slice(1));
 			return code <= 0x10ffff ? String.fromCodePoint(code) : entity;
 		}
 		return XML_ENTITIES[body] ?? entity;

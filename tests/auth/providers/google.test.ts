@@ -21,7 +21,11 @@ describe("googleProvider", () => {
 		);
 		vi.stubGlobal("fetch", fetchMock);
 		const identity = await googleProvider.fetchIdentity("tok", env);
-		expect(identity).toEqual({ login: "alice@example.com", email: "alice@example.com", name: "Alice" });
+		expect(identity).toEqual({
+			login: "alice@example.com",
+			email: "alice@example.com",
+			name: "Alice",
+		});
 		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
 		expect(url).toBe("https://openidconnect.googleapis.com/v1/userinfo");
 		expect(new Headers(init.headers).get("Authorization")).toBe("Bearer tok");

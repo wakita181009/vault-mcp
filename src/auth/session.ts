@@ -162,8 +162,7 @@ export async function addApprovedClient(
 	clientId: string,
 	cookieSecret: string,
 ): Promise<string> {
-	const existingApprovedClients =
-		(await getApprovedClientsFromCookie(request, cookieSecret)) || [];
+	const existingApprovedClients = (await getApprovedClientsFromCookie(request, cookieSecret)) || [];
 	const updatedApprovedClients = Array.from(new Set([...existingApprovedClients, clientId]));
 
 	const payload = JSON.stringify(updatedApprovedClients);

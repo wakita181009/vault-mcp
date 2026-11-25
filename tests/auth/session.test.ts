@@ -28,7 +28,8 @@ const reqInfo = { clientId: "c1", scope: ["read"] } as unknown as Parameters<
 	typeof createOAuthState
 >[0];
 
-const cookieValue = (setCookie: string): string => setCookie.split(";")[0].split("=").slice(1).join("=");
+const cookieValue = (setCookie: string): string =>
+	setCookie.split(";")[0].split("=").slice(1).join("=");
 
 const callbackRequest = (state: string, consentedHash: string | null): Request =>
 	new Request(`https://mcp.example/callback?state=${state}`, {

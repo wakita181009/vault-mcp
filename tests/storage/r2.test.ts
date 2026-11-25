@@ -23,13 +23,15 @@ function fakeBucket(initial: Record<string, string> = {}, pageSize = 1000) {
 			const body = objects.get(key);
 			return body === undefined ? null : { ...meta(key), text: async () => body };
 		}),
-		put: vi.fn(async (key: string, value: string, options?: { customMetadata?: Record<string, string> }) => {
-			objects.set(key, value);
-			uploaded.set(key, new Date(Date.now()));
-			if (options?.customMetadata) custom.set(key, options.customMetadata);
-			else custom.delete(key);
-			return meta(key);
-		}),
+		put: vi.fn(
+			async (key: string, value: string, options?: { customMetadata?: Record<string, string> }) => {
+				objects.set(key, value);
+				uploaded.set(key, new Date(Date.now()));
+				if (options?.customMetadata) custom.set(key, options.customMetadata);
+				else custom.delete(key);
+				return meta(key);
+			},
+		),
 		delete: vi.fn(async (key: string) => {
 			objects.delete(key);
 		}),
@@ -149,7 +151,11 @@ describe("R2Storage.searchContent", () => {
 
 	it("only reads candidates the caller accepts", async () => {
 		const { storage, bucket } = fakeBucket({ "a.md": "hit", ".obsidian/x.md": "hit" });
-		const hits = await storage.searchContent("hit", 10, candidatesOf(storage, (p) => !p.startsWith(".obsidian/")));
+		const hits = await storage.searchContent(
+			"hit",
+			10,
+			candidatesOf(storage, (p) => !p.startsWith(".obsidian/")),
+		);
 		expect(hits.map((h) => h.path)).toEqual(["a.md"]);
 		expect(bucket.get).not.toHaveBeenCalledWith(".obsidian/x.md");
 	});
@@ -172,12 +178,16 @@ describe("R2Storage.searchContent", () => {
 
 	it("treats regex metacharacters in the query literally", async () => {
 		const { storage } = fakeBucket({ "a.md": "cost is $5 (approx)", "b.md": "cost is 55" });
-		expect((await storage.searchContent("$5 (", 10, candidatesOf(storage))).map((h) => h.path)).toEqual(["a.md"]);
+		expect(
+			(await storage.searchContent("$5 (", 10, candidatesOf(storage))).map((h) => h.path),
+		).toEqual(["a.md"]);
 	});
 
 	it("scans the most recently uploaded notes first", async () => {
 		const { storage, bucket } = fakeBucket({ "old.md": "hit", "new.md": "hit" });
-		expect((await storage.searchContent("hit", 1, candidatesOf(storage))).map((h) => h.path)).toEqual(["new.md"]);
+		expect(
+			(await storage.searchContent("hit", 1, candidatesOf(storage))).map((h) => h.path),
+		).toEqual(["new.md"]);
 		expect(bucket.get.mock.calls[0]?.[0]).toBe("new.md");
 	});
 
@@ -187,7 +197,9 @@ describe("R2Storage.searchContent", () => {
 			{ path: "undated.md", size: 3 },
 			{ path: "dated.md", size: 3, modifiedAt: new Date(1) },
 		];
-		expect((await storage.searchContent("hit", 1, candidates)).map((h) => h.path)).toEqual(["dated.md"]);
+		expect((await storage.searchContent("hit", 1, candidates)).map((h) => h.path)).toEqual([
+			"dated.md",
+		]);
 		expect(bucket.get.mock.calls[0]?.[0]).toBe("dated.md");
 	});
 

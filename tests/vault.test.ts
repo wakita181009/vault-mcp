@@ -130,6 +130,8 @@ describe("vaultClientFromEnv", () => {
 
 	it("fails fast on a misconfigured env", () => {
 		const { VAULT_REPO: _omit, ...broken } = WORKER_ENV as unknown as Record<string, string>;
-		expect(() => vaultClientFromEnv(broken as unknown as Env)).toThrow(/Invalid Worker environment/);
+		expect(() => vaultClientFromEnv(broken as unknown as Env)).toThrow(
+			/Invalid Worker environment/,
+		);
 	});
 });

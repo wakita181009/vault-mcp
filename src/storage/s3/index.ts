@@ -66,7 +66,11 @@ export class S3Storage implements VaultStorage {
 			for (const obj of objects) {
 				// Some S3 clients create zero-byte "folder" markers ending in `/`.
 				if (obj.key.endsWith("/")) continue;
-				files.push({ path: obj.key, size: obj.size, ...(obj.lastModified ? { modifiedAt: obj.lastModified } : {}) });
+				files.push({
+					path: obj.key,
+					size: obj.size,
+					...(obj.lastModified ? { modifiedAt: obj.lastModified } : {}),
+				});
 			}
 			if (!truncated || !nextToken) return { files, truncated: false };
 			token = nextToken;

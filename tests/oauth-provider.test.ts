@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const github = vi.hoisted(() => ({ fetch: vi.fn(async () => new Response("github", { status: 200 })) }));
+const github = vi.hoisted(() => ({
+	fetch: vi.fn(async () => new Response("github", { status: 200 })),
+}));
 vi.mock("../src/auth/handler", () => ({ createAuthHandler: vi.fn(() => github) }));
 
 import { createOAuthProvider } from "../src/oauth-provider";
@@ -12,7 +14,8 @@ const ctx = {} as unknown as ExecutionContext;
 const apiHandler = { fetch: () => new Response("unreachable", { status: 500 }) };
 
 const worker = {
-	fetch: (req: Request) => createOAuthProvider(apiHandler, new URL(req.url).origin).fetch(req, env, ctx),
+	fetch: (req: Request) =>
+		createOAuthProvider(apiHandler, new URL(req.url).origin).fetch(req, env, ctx),
 };
 
 const protectedResourceMetadata = async (origin: string) => {
@@ -30,7 +33,10 @@ describe("OAuthProvider wiring", () => {
 
 		expect(res.status).toBe(200);
 		expect(await res.text()).toBe("github");
-		const [passedReq, passedEnv] = github.fetch.mock.calls[0] as unknown as [Request, { OAUTH_PROVIDER?: unknown }];
+		const [passedReq, passedEnv] = github.fetch.mock.calls[0] as unknown as [
+			Request,
+			{ OAUTH_PROVIDER?: unknown },
+		];
 		expect(passedReq.url).toBe(req.url);
 		expect(passedEnv.OAUTH_PROVIDER).toBeDefined();
 	});

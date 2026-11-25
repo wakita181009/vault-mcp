@@ -37,9 +37,7 @@ export function createAuthHandler(provider: UpstreamProvider): Hono<{ Bindings: 
 	// *before* any OAuth state is created or consumed: a failure then costs the
 	// user nothing but a retry, instead of orphaning KV state or burning the
 	// one-shot state on the callback.
-	const resolveEndpoints = async (
-		env: Env,
-	): Promise<[OAuthEndpoints, null] | [null, Response]> => {
+	const resolveEndpoints = async (env: Env): Promise<[OAuthEndpoints, null] | [null, Response]> => {
 		try {
 			return [await provider.endpoints(env), null];
 		} catch (error) {

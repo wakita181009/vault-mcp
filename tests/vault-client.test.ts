@@ -30,8 +30,7 @@ const gh = vi.hoisted(() => {
 vi.mock("octokit", () => ({ Octokit: gh.Octokit }));
 
 /** Base64-encodes a UTF-8 string the way the GitHub API returns file content. */
-const b64 = (s: string): string =>
-	btoa(String.fromCharCode(...new TextEncoder().encode(s)));
+const b64 = (s: string): string => btoa(String.fromCharCode(...new TextEncoder().encode(s)));
 
 const github = { owner: "o", repo: "r", branch: "main", token: "github_pat_x" };
 const config: VaultConfig = {
@@ -107,9 +106,7 @@ describe("readNote", () => {
 		gh.getBlob.mockResolvedValue({ data: { content: b64("large body") } });
 		const note = await client.readNote("big.md");
 		expect(note.content).toBe("large body");
-		expect(gh.getBlob).toHaveBeenCalledWith(
-			expect.objectContaining({ file_sha: "big-sha" }),
-		);
+		expect(gh.getBlob).toHaveBeenCalledWith(expect.objectContaining({ file_sha: "big-sha" }));
 	});
 
 	it("rejects an invalid path before hitting the API", async () => {
@@ -282,9 +279,7 @@ describe("searchNotes", () => {
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		const failure = new Error("search index cold");
 		gh.code.mockRejectedValue(failure);
-		gh.getTree.mockResolvedValue(
-			treeResult([{ path: "notes/query-here.md", type: "blob" }]),
-		);
+		gh.getTree.mockResolvedValue(treeResult([{ path: "notes/query-here.md", type: "blob" }]));
 		const hits = await client.searchNotes("query", 10);
 		expect(hits.map((h) => h.path)).toEqual(["notes/query-here.md"]);
 		expect(warn).toHaveBeenCalledWith(expect.any(String), failure);

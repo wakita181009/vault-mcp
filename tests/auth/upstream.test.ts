@@ -95,7 +95,10 @@ describe("fetchUpstreamAuthToken", () => {
 	});
 
 	it("returns a 400 response when the body is not JSON", async () => {
-		vi.stubGlobal("fetch", vi.fn(async () => new Response("access_token=x")));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => new Response("access_token=x")),
+		);
 		const [token, err] = await fetchUpstreamAuthToken(tokenArgs);
 		expect(token).toBeNull();
 		expect(err?.status).toBe(400);
@@ -103,14 +106,20 @@ describe("fetchUpstreamAuthToken", () => {
 
 	it("returns a 500 response when the upstream call is not ok", async () => {
 		vi.spyOn(console, "error").mockImplementation(() => {});
-		vi.stubGlobal("fetch", vi.fn(async () => new Response("bad", { status: 401 })));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => new Response("bad", { status: 401 })),
+		);
 		const [token, err] = await fetchUpstreamAuthToken(tokenArgs);
 		expect(token).toBeNull();
 		expect(err?.status).toBe(500);
 	});
 
 	it("returns a 400 response when the access token is missing", async () => {
-		vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ scope: "read:user" })));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => jsonResponse({ scope: "read:user" })),
+		);
 		const [token, err] = await fetchUpstreamAuthToken(tokenArgs);
 		expect(token).toBeNull();
 		expect(err?.status).toBe(400);
