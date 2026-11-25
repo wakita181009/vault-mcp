@@ -288,8 +288,13 @@ describe("GET /callback", () => {
 	});
 
 	it("403s an identity outside the allowlist without issuing a grant", async () => {
-		vi.stubGlobal("fetch", vi.fn(async () => Response.json({ access_token: "gho_token" })));
-		octo.getAuthenticated.mockResolvedValue({ data: { login: "mallory", name: null, email: null } });
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => Response.json({ access_token: "gho_token" })),
+		);
+		octo.getAuthenticated.mockResolvedValue({
+			data: { login: "mallory", name: null, email: null },
+		});
 		const { stateToken, consented } = await seedState();
 		const res = await callback(`state=${stateToken}&code=the-code`, consented);
 		expect(res.status).toBe(403);
@@ -398,7 +403,10 @@ describe("GET /callback with the Google provider", () => {
 	});
 
 	it("403s a verified Google email outside the allowlist", async () => {
-		const { res } = await callback({ email: "bob@example.com", email_verified: true });
+		const { res } = await callback({
+			email: "bob@example.com",
+			email_verified: true,
+		});
 		expect(res.status).toBe(403);
 		expect(oauthProvider.completeAuthorization).not.toHaveBeenCalled();
 	});
